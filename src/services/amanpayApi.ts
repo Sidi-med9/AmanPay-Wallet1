@@ -1,12 +1,12 @@
 import { mockDashboardData, mockTransferData, mockReceiptData } from '../data/mockData';
 
 const api = {
-  get: async (url: string) => {
+  get: async (url: string): Promise<any> => {
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 800));
     throw new Error("API not available");
   },
-  post: async (url: string, data?: any) => {
+  post: async (url: string, data?: any): Promise<any> => {
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 800));
     throw new Error("API not available");
