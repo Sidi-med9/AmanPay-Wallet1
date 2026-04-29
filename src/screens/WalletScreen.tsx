@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useWallet } from '../context/WalletContext';
-import { Wallet, CreditCard, ShieldCheck, ShieldAlert, Plus } from 'lucide-react-native';
+import { DesignSystem } from '../constants/DesignSystem';
+import { Wallet, CreditCard, ShieldCheck, ShieldAlert, Plus, ChevronRight, ArrowUpRight } from 'lucide-react-native';
 import { CreateCategoryModal } from '../components/CreateCategoryModal';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export const WalletScreen = ({ navigation }: any) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { dashboard, categories } = useWallet();
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -14,56 +16,83 @@ export const WalletScreen = ({ navigation }: any) => {
 
   const envelopes = dashboard.envelopes || [];
   const totalEnvelopeBalance = envelopes.reduce((acc: number, curr: any) => acc + (curr.balance || 0), 0);
+  const regularBalance = dashboard.balance - totalEnvelopeBalance;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
-        <View style={[styles.card, { backgroundColor: colors.primary }]}>
-          <Text style={styles.cardLabel}>إجمالي رصيد المحفظة</Text>
-          <Text style={styles.cardValue}>{dashboard.balance.toLocaleString()} {dashboard.currency}</Text>
-          
-          <View style={styles.balanceSplit}>
-            <View style={styles.splitItem}>
-              <Text style={styles.splitLabel}>الرصيد العادي</Text>
-              <Text style={styles.splitValue}>{(dashboard.balance - totalEnvelopeBalance).toLocaleString()}</Text>
-            </View>
-            <View style={styles.splitDivider} />
-            <View style={styles.splitItem}>
-              <Text style={styles.splitLabel}>المحافظ الذكية</Text>
-              <Text style={styles.splitValue}>{totalEnvelopeBalance.toLocaleString()}</Text>
-            </View>
-          </View>
-          
-          <Wallet color="rgba(255,255,255,0.15)" size={140} style={styles.bgIcon} />
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <ChevronRight color={colors.text} size={24} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>محفظة AmanPay والمغلفات</Text>
+          <Image source={{ uri: 'https://via.placeholder.com/150' }} style={styles.miniAvatar} />
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>البطاقات المرتبطة</Text>
-        
-        <View style={[styles.creditCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <CreditCard color={colors.primary} size={32} />
-          <View style={styles.ccInfo}>
-            <Text style={[styles.ccName, { color: colors.text }]}>البطاقة المصرفية الموريتانية</Text>
-            <Text style={[styles.ccNumber, { color: colors.secondaryText }]}>**** **** **** 4892</Text>
+        {/* Main Balance Card */}
+        <View style={[styles.mainCard, { backgroundColor: isDark ? '#0C182B' : '#FFF', borderColor: colors.border }]}>
+          <Text style={[styles.mainLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>إجمالي الرصيد</Text>
+          <View style={styles.balanceRow}>
+            <Text style={[styles.mainBalance, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{dashboard.balance.toLocaleString()} {dashboard.currency}</Text>
+            <View style={styles.trendContainer}>
+              <ArrowUpRight color={colors.success} size={16} />
+              <Text style={[styles.trendText, { color: colors.success }]}>3.5%</Text>
+            </View>
+          </View>
+          <Text style={[styles.weekText, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>%٣.٥ هذا الأسبوع</Text>
+        </View>
+
+        {/* Sub Balances */}
+        <View style={styles.subBalancesRow}>
+          <View style={[styles.subBalanceCard, { backgroundColor: isDark ? '#0C182B' : '#FFF', borderColor: colors.border }]}>
+            <Text style={[styles.subLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>إجمالي رصيد المغلفات</Text>
+            <Text style={[styles.subValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{totalEnvelopeBalance.toLocaleString()} {dashboard.currency}</Text>
+          </View>
+          <View style={[styles.subBalanceCard, { backgroundColor: isDark ? '#0C182B' : '#FFF', borderColor: colors.border }]}>
+            <Text style={[styles.subLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>الرصيد العادي</Text>
+            <Text style={[styles.subValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{regularBalance.toLocaleString()} {dashboard.currency}</Text>
           </View>
         </View>
 
-        <View style={styles.headerRow}>
-          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>المحافظ الذكية (Envelopes)</Text>
-          <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addBtn}>
-            <Plus color={colors.primary} size={20} />
-            <Text style={[styles.addBtnText, { color: colors.primary }]}>محفظة جديدة</Text>
+        {/* Linked Cards */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>البطاقات المرتبطة</Text>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsScroll}>
+          <LinearGradient
+            colors={['#00D2D3', '#0097A7']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.ccCard, { borderRadius: DesignSystem.borderRadius.xl }]}
+          >
+            <View style={styles.ccHeader}>
+              <Text style={styles.ccType}>AmanPay Visa</Text>
+              <View style={styles.ccCircle} />
+            </View>
+            <Text style={styles.ccNumber}>٠٥٤١ **** **** ٨٩٧٦</Text>
+            <Text style={styles.ccHolder}>أحمد علي</Text>
+          </LinearGradient>
+          
+          <TouchableOpacity style={[styles.addCardBtn, { borderColor: colors.border, borderRadius: DesignSystem.borderRadius.xl }]}>
+            <Plus color={colors.secondaryText} size={24} />
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Envelopes Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>المغلفات</Text>
+          <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addEnvelopeBtn}>
+            <Plus color={colors.primary} size={18} />
+            <Text style={[styles.addEnvelopeText, { color: colors.primary, fontFamily: DesignSystem.fonts.family }]}>جديد</Text>
           </TouchableOpacity>
         </View>
 
         {envelopes.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Wallet color={colors.secondaryText} size={48} style={{ marginBottom: 12 }} />
-            <Text style={[styles.emptyText, { color: colors.text }]}>لا توجد محافظ نشطة حتى الآن</Text>
-            <Text style={[styles.emptySubText, { color: colors.secondaryText }]}>قم بإنشاء محفظة جديدة أو استلم أموالاً مخصصة لمحفظة لتبدأ.</Text>
-            <TouchableOpacity style={[styles.createBtn, { backgroundColor: colors.primary }]} onPress={() => setModalVisible(true)}>
-              <Text style={styles.createBtnText}>إنشاء محفظة</Text>
-            </TouchableOpacity>
+            <Text style={[styles.emptyText, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>لا توجد مغلفات نشطة</Text>
           </View>
         ) : (
           envelopes.map((env: any, index: number) => {
@@ -71,26 +100,18 @@ export const WalletScreen = ({ navigation }: any) => {
             if (!cat) return null;
 
             return (
-              <View key={`${env.categoryId}-${index}`} style={[styles.envelopeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.iconWrap, { backgroundColor: `${cat.color}20` }]}>
-                  <Text style={{ color: cat.color, fontWeight: 'bold', fontSize: 20 }}>{cat.name.charAt(0)}</Text>
+              <View key={index} style={[styles.envItem, { backgroundColor: isDark ? '#0C182B' : '#FFF', borderColor: colors.border }]}>
+                <View style={[styles.badge, { backgroundColor: env.mode === 'strict' ? colors.danger : colors.success }]}>
+                  <Text style={styles.badgeText}>{env.mode === 'strict' ? 'صارم' : 'مرن'}</Text>
                 </View>
-                <View style={styles.envInfo}>
-                  <Text style={[styles.envName, { color: colors.text }]}>{cat.name}</Text>
-                  <View style={styles.modeRow}>
-                    {env.mode === 'strict' ? (
-                      <ShieldAlert color={colors.danger} size={14} />
-                    ) : (
-                      <ShieldCheck color={colors.success} size={14} />
-                    )}
-                    <Text style={[styles.envMode, { color: colors.secondaryText }]}>
-                      {env.mode === 'strict' ? 'صارم' : 'مرن'}
-                    </Text>
+                <View style={styles.envMain}>
+                  <View style={styles.envTextCol}>
+                    <Text style={[styles.envName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{cat.name}</Text>
+                    <Text style={[styles.envAmount, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>{env.balance.toLocaleString()} {dashboard.currency}</Text>
                   </View>
-                </View>
-                <View style={styles.envBalanceWrap}>
-                  <Text style={[styles.envBalance, { color: colors.text }]}>{env.balance.toLocaleString()}</Text>
-                  <Text style={[styles.envCurrency, { color: colors.secondaryText }]}>{dashboard.currency}</Text>
+                  <View style={[styles.envIconWrap, { backgroundColor: (cat.color || colors.primary) + '15' }]}>
+                    <Text style={{ color: cat.color || colors.primary, fontSize: 18 }}>{cat.name.charAt(0)}</Text>
+                  </View>
                 </View>
               </View>
             );
@@ -110,35 +131,41 @@ export const WalletScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { padding: 20, paddingBottom: 100 },
-  card: { borderRadius: 20, padding: 24, marginBottom: 32, overflow: 'hidden' },
-  cardLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 16, marginBottom: 8 },
-  cardValue: { color: '#FFF', fontSize: 36, fontWeight: 'bold', marginBottom: 16 },
-  balanceSplit: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 12, padding: 12 },
-  splitItem: { flex: 1 },
-  splitLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4 },
-  splitValue: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  splitDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 12 },
-  bgIcon: { position: 'absolute', bottom: -20, right: -20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, marginTop: 8 },
-  addBtn: { flexDirection: 'row', alignItems: 'center' },
-  addBtnText: { fontSize: 14, fontWeight: 'bold', marginLeft: 4 },
-  creditCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 16, borderWidth: 1, marginBottom: 24 },
-  ccInfo: { marginLeft: 16 },
-  ccName: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  ccNumber: { fontSize: 14, letterSpacing: 2 },
-  envelopeCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
-  iconWrap: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginLeft: 0, marginRight: 16 },
-  envInfo: { flex: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  backBtn: { padding: 4 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', flex: 1, textAlign: 'center' },
+  miniAvatar: { width: 36, height: 36, borderRadius: 18 },
+  mainCard: { padding: 24, borderRadius: 24, borderWidth: 1, marginBottom: 16, ...DesignSystem.shadows.light },
+  mainLabel: { fontSize: 14, marginBottom: 8, textAlign: 'center' },
+  balanceRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
+  mainBalance: { fontSize: 32, fontWeight: 'bold' },
+  trendContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(16,185,129,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  trendText: { fontSize: 12, fontWeight: 'bold', marginLeft: 2 },
+  weekText: { fontSize: 12, textAlign: 'center', marginTop: 8 },
+  subBalancesRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  subBalanceCard: { flex: 1, padding: 16, borderRadius: 20, borderWidth: 1, ...DesignSystem.shadows.light },
+  subLabel: { fontSize: 12, marginBottom: 4 },
+  subValue: { fontSize: 16, fontWeight: 'bold' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold' },
+  cardsScroll: { paddingBottom: 8 },
+  ccCard: { width: 260, height: 160, padding: 20, marginRight: 16, justifyContent: 'space-between' },
+  ccHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+  ccType: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  ccCircle: { width: 40, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)' },
+  ccNumber: { color: '#FFF', fontSize: 18, letterSpacing: 2, fontWeight: '500' },
+  ccHolder: { color: '#FFF', fontSize: 14, opacity: 0.9 },
+  addCardBtn: { width: 60, height: 160, borderWidth: 1, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
+  addEnvelopeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  addEnvelopeText: { fontSize: 14, fontWeight: 'bold' },
+  envItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 12, ...DesignSystem.shadows.light },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, position: 'absolute', left: 16 },
+  badgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+  envMain: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
+  envTextCol: { alignItems: 'flex-end', marginRight: 16 },
   envName: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  modeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  envMode: { fontSize: 12 },
-  envBalanceWrap: { alignItems: 'flex-end' },
-  envBalance: { fontSize: 18, fontWeight: 'bold' },
-  envCurrency: { fontSize: 12, marginTop: 2 },
-  emptyState: { padding: 32, alignItems: 'center', borderRadius: 16, borderWidth: 1, borderStyle: 'dashed' },
-  emptyText: { fontSize: 16, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
-  emptySubText: { fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 22 },
-  createBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
-  createBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 }
+  envAmount: { fontSize: 14 },
+  envIconWrap: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  emptyState: { padding: 32, alignItems: 'center', borderRadius: 20, borderWidth: 1, borderStyle: 'dashed' },
+  emptyText: { fontSize: 14 },
 });

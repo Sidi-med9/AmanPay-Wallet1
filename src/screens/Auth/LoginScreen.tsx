@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { DesignSystem } from '../../constants/DesignSystem';
+import { PrimaryButton } from '../../components/PrimaryButton';
+import { Lock } from 'lucide-react-native';
 
 export function LoginScreen({ navigation }: any) {
   const { signIn, isLoading } = useAuth();
@@ -18,39 +21,56 @@ export function LoginScreen({ navigation }: any) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]}>مرحباً بك في أمان باي</Text>
-        <Text style={[styles.subtitle, { color: colors.secondaryText }]}>سجل الدخول للمتابعة</Text>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
-            placeholder="البريد الإلكتروني أو رقم الهاتف"
-            placeholderTextColor={colors.secondaryText}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
-            placeholder="كلمة المرور"
-            placeholderTextColor={colors.secondaryText}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Text style={[styles.logoText, { color: colors.primary }]}>أمان باي</Text>
+            <Text style={[styles.logoSubText, { color: colors.text }]}>AmanPay</Text>
+          </View>
+          <Text style={[styles.title, { color: colors.text }]}>تسجيل الدخول الآمن</Text>
         </View>
 
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: colors.primary }]} 
-          onPress={handleLogin}
-          disabled={isLoading}
-        >
-          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>تسجيل الدخول</Text>}
-        </TouchableOpacity>
+        <View style={styles.form}>
+          <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: DesignSystem.borderRadius.lg }]}>
+            <Lock color={colors.primary} size={20} />
+            <TextInput
+              style={[styles.input, { color: colors.text }]}
+              placeholder="رقم الهاتف"
+              placeholderTextColor={colors.secondaryText}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              textAlign="right"
+            />
+          </View>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.linkButton}>
-          <Text style={[styles.linkText, { color: colors.primary }]}>ليس لديك حساب؟ إنشاء حساب جديد</Text>
-        </TouchableOpacity>
+          <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: DesignSystem.borderRadius.lg }]}>
+            <Lock color={colors.primary} size={20} />
+            <TextInput
+              style={[styles.input, { color: colors.text }]}
+              placeholder="كلمة المرور"
+              placeholderTextColor={colors.secondaryText}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              textAlign="right"
+            />
+          </View>
+
+          <PrimaryButton 
+            title="تسجيل الدخول" 
+            onPress={handleLogin}
+            disabled={isLoading || !email || !password}
+            style={styles.loginBtn}
+          />
+
+          <TouchableOpacity style={styles.forgotBtn}>
+            <Text style={[styles.forgotText, { color: colors.text }]}>نسيت كلمة المرور؟</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.registerBtn}>
+            <Text style={[styles.registerText, { color: colors.primary }]}>تسجيل حساب جديد</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -58,27 +78,45 @@ export function LoginScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 16, marginBottom: 32, textAlign: 'center' },
-  inputContainer: { marginBottom: 24 },
-  input: {
-    height: 56,
+  content: { flex: 1, padding: 24, justifyContent: 'center' },
+  header: { alignItems: 'center', marginBottom: 40 },
+  logoContainer: { alignItems: 'center', marginBottom: 20 },
+  logoText: { fontSize: 40, fontWeight: 'bold' },
+  logoSubText: { fontSize: 24, fontWeight: 'bold', marginTop: -10 },
+  title: { fontSize: 22, fontWeight: '600', marginTop: 10 },
+  form: { width: '100%' },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 60,
     borderWidth: 1,
-    borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
+  },
+  input: {
+    flex: 1,
+    height: '100%',
     fontSize: 16,
-    textAlign: 'right'
+    marginLeft: 10,
   },
-  button: {
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
+  loginBtn: {
+    marginTop: 20,
+  },
+  forgotBtn: {
     alignItems: 'center',
-    marginBottom: 16
+    marginTop: 20,
   },
-  buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  linkButton: { alignItems: 'center', padding: 8 },
-  linkText: { fontSize: 16, fontWeight: '600' }
+  forgotText: {
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  registerBtn: {
+    alignItems: 'center',
+    marginTop: 20,
+    padding: 10,
+  },
+  registerText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  }
 });

@@ -23,27 +23,27 @@ interface ThemeContextType {
 }
 
 const lightColors: Colors = {
-  background: '#F5F7FA',
+  background: '#F8FAFC',
   card: '#FFFFFF',
-  text: '#0F2C59',
-  secondaryText: '#75808A',
-  primary: '#00BCD4', // Turquoise/Cyan
-  danger: '#F44336',
-  success: '#4CAF50',
-  border: '#E0E0E0',
+  text: '#0F172A',
+  secondaryText: '#64748B',
+  primary: '#00D2D3',
+  danger: '#EF4444',
+  success: '#10B981',
+  border: '#E2E8F0',
   navbar: '#FFFFFF',
 };
 
 const darkColors: Colors = {
-  background: '#0B132B',
-  card: '#1C2541',
+  background: '#040D1B',
+  card: '#0C182B',
   text: '#FFFFFF',
-  secondaryText: '#8D99AE',
-  primary: '#00E5FF', // Emerald/Cyan accent
-  danger: '#FF5252',
-  success: '#69F0AE',
-  border: '#2C3E50',
-  navbar: '#131A32',
+  secondaryText: '#94A3B8',
+  primary: '#00D2D3',
+  danger: '#F87171',
+  success: '#34D399',
+  border: '#1E293B',
+  navbar: '#061121',
 };
 
 const ThemeContext = createContext<ThemeContextType>({} as ThemeContextType);

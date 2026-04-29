@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useWallet } from '../../context/WalletContext';
+import { DesignSystem } from '../../constants/DesignSystem';
 import { PrimaryButton } from '../../components/PrimaryButton';
-import { Globe, Building, CheckCircle2, ChevronDown } from 'lucide-react-native';
+import { Globe, Building, CheckCircle2, ChevronDown, Phone, Banknote, ChevronLeft } from 'lucide-react-native';
 import { CountryPickerModal, CountryData, COUNTRIES } from '../../components/CountryPickerModal';
 
 export const InternationalTransferScreen = ({ navigation }: any) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { intermediaries } = useWallet();
   
   const [selectedCountry, setSelectedCountry] = useState<CountryData>(COUNTRIES[1]); // Default Senegal
@@ -19,8 +20,7 @@ export const InternationalTransferScreen = ({ navigation }: any) => {
 
   const handleCountrySelect = (country: CountryData) => {
     setSelectedCountry(country);
-    // Automatically prefix phone number with country code if empty or starts with plus
-    if (!receiver || receiver.startsWith('+')) {
+    if (!receiver || receiver.trim() === '' || receiver.startsWith('+')) {
       setReceiver(`${country.code} `);
     }
   };
@@ -37,64 +37,83 @@ export const InternationalTransferScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
-        <Text style={[styles.label, { color: colors.text }]}>الدولة الوجهة</Text>
-        <TouchableOpacity 
-          style={[styles.inputContainer, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={() => setPickerVisible(true)}
-        >
-          <Globe color={colors.secondaryText} size={20} />
-          <Text style={[styles.inputText, { color: colors.text }]}>
-            {selectedCountry.flag} {selectedCountry.name}
-          </Text>
-          <ChevronDown color={colors.secondaryText} size={20} />
-        </TouchableOpacity>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>تحويل دولي</Text>
+        </View>
 
-        <Text style={[styles.label, { color: colors.text }]}>رقم هاتف المستلم</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
-          placeholder={`${selectedCountry.code} 00000000`}
-          placeholderTextColor={colors.secondaryText}
-          value={receiver}
-          onChangeText={setReceiver}
-          keyboardType="phone-pad"
-        />
+        <View style={styles.inputSection}>
+          <Text style={[styles.label, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>الدولة الوجهة</Text>
+          <TouchableOpacity 
+            style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: DesignSystem.borderRadius.lg }]}
+            onPress={() => setPickerVisible(true)}
+          >
+            <ChevronLeft color={colors.secondaryText} size={20} />
+            <Text style={[styles.inputText, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+              {selectedCountry.flag} {selectedCountry.name}
+            </Text>
+            <Globe color={colors.primary} size={20} />
+          </TouchableOpacity>
+        </View>
 
-        <Text style={[styles.label, { color: colors.text }]}>المبلغ ({selectedCountry.currency})</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
-          placeholder="0.00"
-          placeholderTextColor={colors.secondaryText}
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-        />
+        <View style={styles.inputSection}>
+          <Text style={[styles.label, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>رقم هاتف المستلم</Text>
+          <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: DesignSystem.borderRadius.lg }]}>
+            <TextInput
+              style={[styles.input, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}
+              placeholder={`${selectedCountry.code} 00000000`}
+              placeholderTextColor={colors.secondaryText}
+              value={receiver}
+              onChangeText={setReceiver}
+              keyboardType="phone-pad"
+              textAlign="right"
+            />
+            <Phone size={20} color={colors.primary} />
+          </View>
+        </View>
 
-        <Text style={[styles.label, { color: colors.text, marginTop: 16 }]}>اختيار الوكيل (Intermediary)</Text>
+        <View style={styles.inputSection}>
+          <Text style={[styles.label, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>المبلغ ({selectedCountry.currency})</Text>
+          <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: DesignSystem.borderRadius.lg }]}>
+            <TextInput
+              style={[styles.input, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}
+              placeholder="0.00"
+              placeholderTextColor={colors.secondaryText}
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+              textAlign="right"
+            />
+            <Banknote size={20} color={colors.primary} />
+          </View>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>اختيار الوكيل (Intermediary)</Text>
         
         {intermediaries.map(int => (
           <TouchableOpacity 
             key={int.id}
             style={[
               styles.agentCard, 
-              { backgroundColor: colors.card, borderColor: selectedIntermediary === int.id ? colors.primary : colors.border },
-              selectedIntermediary === int.id && { backgroundColor: 'rgba(0,188,212,0.05)' }
+              { backgroundColor: colors.card, borderColor: selectedIntermediary === int.id ? colors.primary : colors.border, borderRadius: DesignSystem.borderRadius.xl },
+              selectedIntermediary === int.id && { ...DesignSystem.shadows.light, backgroundColor: isDark ? '#0C182B' : '#F0FDFA' }
             ]}
             onPress={() => setSelectedIntermediary(int.id)}
           >
             <View style={styles.agentHeader}>
-              <Building color={selectedIntermediary === int.id ? colors.primary : colors.secondaryText} size={24} />
               <View style={styles.agentInfo}>
-                <Text style={[styles.agentName, { color: selectedIntermediary === int.id ? colors.primary : colors.text }]}>{int.name}</Text>
-                <Text style={[styles.agentFee, { color: colors.secondaryText }]}>الرسوم: {int.fee} • المدة: {int.speed}</Text>
+                <Text style={[styles.agentName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{int.name}</Text>
+                <Text style={[styles.agentFee, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>الرسوم: {int.fee} • المدة: {int.speed}</Text>
               </View>
-              {selectedIntermediary === int.id && <CheckCircle2 color={colors.primary} size={24} />}
+              <View style={[styles.iconBox, { backgroundColor: selectedIntermediary === int.id ? colors.primary + '15' : colors.border }]}>
+                <Building color={selectedIntermediary === int.id ? colors.primary : colors.secondaryText} size={22} />
+              </View>
             </View>
             <View style={styles.tagsRow}>
               {int.tags.map((tag: string, idx: number) => (
-                <View key={idx} style={[styles.tag, { backgroundColor: colors.border }]}>
-                  <Text style={[styles.tagText, { color: colors.text }]}>{tag}</Text>
+                <View key={idx} style={[styles.tag, { backgroundColor: isDark ? '#1E293B' : '#E2E8F0' }]}>
+                  <Text style={[styles.tagText, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{tag}</Text>
                 </View>
               ))}
             </View>
@@ -103,11 +122,12 @@ export const InternationalTransferScreen = ({ navigation }: any) => {
 
       </ScrollView>
 
-      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      <View style={styles.footer}>
         <PrimaryButton 
           title="متابعة للمحافظ الوثوقة" 
           onPress={handleNext} 
           disabled={!receiver || !amount || !selectedIntermediary} 
+          style={{ height: 60 }}
         />
       </View>
 
@@ -122,18 +142,23 @@ export const InternationalTransferScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  container: { padding: 20, paddingBottom: 100 },
-  label: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', height: 56, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, marginBottom: 20 },
-  inputText: { flex: 1, fontSize: 16, marginLeft: 12, textAlign: 'right' },
-  input: { height: 56, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, marginBottom: 20, fontSize: 16, textAlign: 'right' },
-  agentCard: { padding: 16, borderRadius: 12, borderWidth: 2, marginBottom: 12 },
-  agentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  agentInfo: { flex: 1, marginLeft: 16 },
+  container: { padding: 24, paddingBottom: 120 },
+  header: { alignItems: 'center', marginBottom: 32 },
+  title: { fontSize: 20, fontWeight: 'bold' },
+  inputSection: { marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, textAlign: 'right' },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', height: 60, borderWidth: 1, paddingHorizontal: 16, gap: 12 },
+  inputText: { flex: 1, fontSize: 16, textAlign: 'right' },
+  input: { flex: 1, height: '100%', fontSize: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginTop: 24, marginBottom: 16, textAlign: 'right' },
+  agentCard: { padding: 20, borderWidth: 1, marginBottom: 16 },
+  agentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  iconBox: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginLeft: 16 },
+  agentInfo: { flex: 1, alignItems: 'flex-end' },
   agentName: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   agentFee: { fontSize: 12 },
-  tagsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginLeft: 40 },
+  tagsRow: { flexDirection: 'row-reverse', gap: 8, flexWrap: 'wrap' },
   tag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  tagText: { fontSize: 10, fontWeight: 'bold' },
-  footer: { padding: 20, paddingBottom: 40, borderTopWidth: 1, position: 'absolute', bottom: 0, left: 0, right: 0 },
+  tagText: { fontSize: 10, fontWeight: '600' },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, paddingBottom: 40 },
 });

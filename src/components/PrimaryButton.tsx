@@ -1,41 +1,56 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, View } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
+import { DesignSystem } from '../constants/DesignSystem';
 
 interface PrimaryButtonProps {
   title: string;
   onPress: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  icon?: React.ReactNode;
 }
 
-export const PrimaryButton: React.FC<PrimaryButtonProps> = ({ title, onPress, disabled, style }) => {
+export const PrimaryButton: React.FC<PrimaryButtonProps> = ({ title, onPress, disabled, style, icon }) => {
+  const { colors } = useTheme();
+  
   return (
     <TouchableOpacity
-      style={[styles.button, disabled && styles.disabled, style]}
+      style={[
+        styles.button, 
+        { backgroundColor: colors.primary, borderRadius: DesignSystem.borderRadius.xl },
+        disabled && styles.disabled, 
+        style
+      ]}
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.8}
     >
-      <Text style={styles.text}>{title}</Text>
+      <View style={styles.content}>
+        {icon && <View style={styles.iconContainer}>{icon}</View>}
+        <Text style={[styles.text, { fontFamily: DesignSystem.fonts.family }]}>{title}</Text>
+      </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#0F2C59',
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...DesignSystem.shadows.medium,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    marginRight: 10,
   },
   disabled: {
-    backgroundColor: '#A0AAB2',
+    opacity: 0.5,
   },
   text: {
     color: '#FFFFFF',

@@ -1,74 +1,132 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useWallet } from '../context/WalletContext';
-import { BarChart2, TrendingUp, TrendingDown, RefreshCcw } from 'lucide-react-native';
+import { DesignSystem } from '../constants/DesignSystem';
+import { PieChart, TrendingUp, TrendingDown, Calendar, ChevronRight, FileDown, ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export const ReportsScreen = () => {
-  const { colors } = useTheme();
-  const { reports, transactions } = useWallet();
+  const { colors, isDark } = useTheme();
+  const { reports } = useWallet();
 
   if (!reports) return null;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
-        <Text style={[styles.title, { color: colors.text }]}>نظرة عامة</Text>
-        
-        <View style={styles.grid}>
-          <View style={[styles.statBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.iconWrap, { backgroundColor: 'rgba(76, 175, 80, 0.1)' }]}>
-              <TrendingDown color={colors.success} size={24} />
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>التحليلات والتقارير</Text>
+          <View style={styles.headerRow}>
+            <View style={[styles.datePicker, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Calendar size={18} color={colors.secondaryText} />
+              <Text style={[styles.dateText, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>التاريخ</Text>
             </View>
-            <Text style={[styles.statValue, { color: colors.text }]}>{reports.totalReceived} MRU</Text>
-            <Text style={[styles.statLabel, { color: colors.secondaryText }]}>إجمالي المستلم</Text>
+          </View>
+        </View>
+
+        {/* Stats Row */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
+          <LinearGradient
+            colors={isDark ? ['#0C182B', '#1E293B'] : ['#E0F2FE', '#F0FDFA']}
+            style={[styles.statCard, { borderRadius: DesignSystem.borderRadius.xl, borderColor: colors.border }]}
+          >
+            <View style={styles.statHeader}>
+              <View style={[styles.statIcon, { backgroundColor: colors.primary + '20' }]}>
+                <TrendingUp size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.statLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>إجمالي المرسل</Text>
+            </View>
+            <Text style={[styles.statValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{reports.totalSent.toLocaleString()} MRU</Text>
+            <View style={styles.trendRow}>
+              <ArrowUpRight size={14} color={colors.success} />
+              <Text style={[styles.trendText, { color: colors.success }]}>+15% من الشهر الماضي</Text>
+            </View>
+          </LinearGradient>
+
+          <LinearGradient
+            colors={isDark ? ['#0C182B', '#1E293B'] : ['#ECFDF5', '#F0FDF4']}
+            style={[styles.statCard, { borderRadius: DesignSystem.borderRadius.xl, borderColor: colors.border }]}
+          >
+            <View style={styles.statHeader}>
+              <View style={[styles.statIcon, { backgroundColor: colors.success + '20' }]}>
+                <TrendingDown size={20} color={colors.success} />
+              </View>
+              <Text style={[styles.statLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>إجمالي المستلم</Text>
+            </View>
+            <Text style={[styles.statValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{reports.totalReceived.toLocaleString()} MRU</Text>
+            <View style={styles.trendRow}>
+              <ArrowUpRight size={14} color={colors.success} />
+              <Text style={[styles.trendText, { color: colors.success }]}>+8%</Text>
+            </View>
+          </LinearGradient>
+        </ScrollView>
+
+        {/* Mock Chart Section */}
+        <View style={[styles.chartContainer, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: DesignSystem.borderRadius.xxl }]}>
+          <Text style={[styles.chartTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>المرسل مقابل المستلم (آخر ٦ أشهر)</Text>
+          <View style={styles.chartLegend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.legendText, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>المرسل</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+              <Text style={[styles.legendText, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>المستلم</Text>
+            </View>
           </View>
           
-          <View style={[styles.statBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.iconWrap, { backgroundColor: 'rgba(244, 67, 54, 0.1)' }]}>
-              <TrendingUp color={colors.danger} size={24} />
-            </View>
-            <Text style={[styles.statValue, { color: colors.text }]}>{reports.totalSent} MRU</Text>
-            <Text style={[styles.statLabel, { color: colors.secondaryText }]}>إجمالي المرسل</Text>
+          <View style={styles.mockBarChart}>
+            {[40, 60, 45, 75, 50, 85].map((h, i) => (
+              <View key={i} style={styles.barGroup}>
+                <View style={[styles.bar, { height: h, backgroundColor: colors.primary, borderRadius: 4 }]} />
+                <View style={[styles.bar, { height: h * 0.7, backgroundColor: colors.success, borderRadius: 4 }]} />
+              </View>
+            ))}
+          </View>
+          <View style={styles.chartLabels}>
+            {['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'].map((m, i) => (
+              <Text key={i} style={[styles.labelMonth, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>{m}</Text>
+            ))}
           </View>
         </View>
 
-        <View style={styles.grid}>
-          <View style={[styles.statBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.iconWrap, { backgroundColor: 'rgba(255, 152, 0, 0.1)' }]}>
-              <RefreshCcw color="#FF9800" size={24} />
-            </View>
-            <Text style={[styles.statValue, { color: colors.text }]}>{reports.transfersCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.secondaryText }]}>عدد العمليات</Text>
+        {/* Category Usage Section */}
+        <View style={[styles.categorySection, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: DesignSystem.borderRadius.xxl }]}>
+          <View style={styles.catHeader}>
+            <Text style={[styles.catTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>استخدام التصنيفات</Text>
+            <ChevronRight color={colors.secondaryText} size={20} />
           </View>
-
-          <View style={[styles.statBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.iconWrap, { backgroundColor: 'rgba(33, 150, 243, 0.1)' }]}>
-              <BarChart2 color="#2196F3" size={24} />
+          
+          <View style={styles.mockDonutContainer}>
+            <View style={[styles.mockDonut, { borderColor: colors.primary }]}>
+              <View style={[styles.donutSegment, { borderTopColor: colors.success, transform: [{ rotate: '45deg' }] }]} />
+              <Text style={[styles.donutCenterText, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>١٠٠٪</Text>
             </View>
-            <Text style={[styles.statValue, { color: colors.text }]}>{reports.totalFees} MRU</Text>
-            <Text style={[styles.statLabel, { color: colors.secondaryText }]}>إجمالي الرسوم</Text>
+            <View style={styles.catList}>
+              <View style={styles.catItem}>
+                <View style={[styles.catDot, { backgroundColor: '#3B82F6' }]} />
+                <Text style={[styles.catName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>طعام (٤٥٪)</Text>
+              </View>
+              <View style={styles.catItem}>
+                <View style={[styles.catDot, { backgroundColor: '#10B981' }]} />
+                <Text style={[styles.catName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>تعليم (٢٥٪)</Text>
+              </View>
+              <View style={styles.catItem}>
+                <View style={[styles.catDot, { backgroundColor: '#F59E0B' }]} />
+                <Text style={[styles.catName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>أخرى (٣٠٪)</Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        <Text style={[styles.title, { color: colors.text, marginTop: 24 }]}>سجل التحويلات الكامل</Text>
-        {transactions.map((trx, idx) => (
-          <View key={trx.id || idx} style={[styles.transactionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.trxDetails}>
-              <Text style={[styles.trxName, { color: colors.text }]}>{trx.receiver || trx.sender}</Text>
-              <Text style={[styles.trxType, { color: colors.secondaryText }]}>{trx.type === 'local' ? 'محلي' : 'دولي'} • {trx.transferMode === 'envelope' ? 'ظرف أمان' : 'عادي'}</Text>
-            </View>
-            <View style={styles.trxAmountContainer}>
-              <Text style={[styles.trxAmount, { color: trx.amount > 0 ? colors.text : colors.success }]}>
-                {trx.amount} MRU
-              </Text>
-              <Text style={[styles.trxDate, { color: colors.secondaryText }]}>
-                {new Date(trx.date).toLocaleDateString()}
-              </Text>
-            </View>
-          </View>
-        ))}
+        {/* Download Button */}
+        <TouchableOpacity style={[styles.downloadBtn, { backgroundColor: colors.primary, borderRadius: DesignSystem.borderRadius.xl }]}>
+          <FileDown color="#FFF" size={20} />
+          <Text style={[styles.downloadText, { color: '#FFF', fontFamily: DesignSystem.fonts.family }]}>تحميل التقرير الكامل</Text>
+        </TouchableOpacity>
 
       </ScrollView>
     </SafeAreaView>
@@ -77,18 +135,42 @@ export const ReportsScreen = () => {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  container: { padding: 20 },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
-  grid: { flexDirection: 'row', gap: 16, marginBottom: 16 },
-  statBox: { flex: 1, padding: 16, borderRadius: 16, borderWidth: 1, alignItems: 'center' },
-  iconWrap: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  statValue: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
-  statLabel: { fontSize: 12 },
-  transactionCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
-  trxDetails: { flex: 1 },
-  trxName: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  trxType: { fontSize: 12 },
-  trxAmountContainer: { alignItems: 'flex-end' },
-  trxAmount: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  trxDate: { fontSize: 12 },
+  container: { padding: 20, paddingBottom: 100 },
+  header: { marginBottom: 24, alignItems: 'center' },
+  headerTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 16 },
+  headerRow: { flexDirection: 'row', justifyContent: 'center', width: '100%' },
+  datePicker: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, borderWidth: 1, gap: 8 },
+  dateText: { fontSize: 14, fontWeight: '600' },
+  statsScroll: { paddingBottom: 8, gap: 16 },
+  statCard: { width: 220, padding: 20, borderWidth: 1, ...DesignSystem.shadows.light },
+  statHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
+  statIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  statLabel: { fontSize: 14, fontWeight: '500' },
+  statValue: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
+  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  trendText: { fontSize: 10, fontWeight: 'bold' },
+  chartContainer: { padding: 20, marginBottom: 20, borderWidth: 1, ...DesignSystem.shadows.light },
+  chartTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
+  chartLegend: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 20 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontSize: 12 },
+  mockBarChart: { height: 120, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 10 },
+  barGroup: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  bar: { width: 12 },
+  chartLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
+  labelMonth: { fontSize: 10 },
+  categorySection: { padding: 20, marginBottom: 24, borderWidth: 1, ...DesignSystem.shadows.light },
+  catHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  catTitle: { fontSize: 16, fontWeight: 'bold' },
+  mockDonutContainer: { flexDirection: 'row', alignItems: 'center', gap: 24 },
+  mockDonut: { width: 100, height: 100, borderRadius: 50, borderWidth: 10, justifyContent: 'center', alignItems: 'center' },
+  donutSegment: { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 10, borderLeftColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: 'transparent' },
+  donutCenterText: { fontSize: 18, fontWeight: 'bold' },
+  catList: { flex: 1, gap: 12 },
+  catItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  catDot: { width: 10, height: 10, borderRadius: 5 },
+  catName: { fontSize: 13, fontWeight: '500' },
+  downloadBtn: { height: 60, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12, ...DesignSystem.shadows.medium },
+  downloadText: { fontSize: 18, fontWeight: 'bold' },
 });
