@@ -32,15 +32,31 @@ export function RegisterScreen({ navigation }: any) {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
+  const [errors, setErrors] = useState<{
+    name?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+  }>({});
+  const [submitted, setSubmitted] = useState(false);
 
   const handleRegister = async () => {
-    if (!name || !email || !password) return;
-    if (password.length < 8) {
-      setDialog({ title: t("auth.passwordTooShortTitle"), message: t("auth.passwordTooShort") });
-      return;
-    }
+    setSubmitted(true);
+    const nextErrors: { name?: string; email?: string; phone?: string; password?: string } = {};
+    const nameTrimmed = name.trim();
+    const emailTrimmed = email.trim().toLowerCase();
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (nameTrimmed.length < 2) nextErrors.name = t("auth.fullNameTooShort");
+    if (!emailTrimmed) nextErrors.email = t("auth.fieldRequired");
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) nextErrors.email = t("auth.invalidEmail");
+    if (phone.trim() && phoneDigits.length < 5) nextErrors.phone = t("auth.invalidPhone");
+    if (!password) nextErrors.password = t("auth.fieldRequired");
+    else if (password.length < 8) nextErrors.password = t("auth.passwordTooShort");
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     try {
-      await signUp({ name, email, phone, password });
+      await signUp({ name: nameTrimmed, email: emailTrimmed, phone: phone.trim(), password });
     } catch (e) {
       const m = mapRegisterErrorToDialog(e);
       const title = t(m.titleKey);
@@ -99,8 +115,12 @@ export function RegisterScreen({ navigation }: any) {
                 placeholder={t("auth.fullName")}
                 placeholderTextColor={colors.secondaryText}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(value) => {
+                  setName(value);
+                  if (submitted) setErrors((prev) => ({ ...prev, name: undefined }));
+                }}
               />
+              {errors.name ? <Text style={[styles.errorText, { color: colors.danger, textAlign }]}>{errors.name}</Text> : null}
               <TextInput
                 style={[
                   styles.input,
@@ -115,11 +135,17 @@ export function RegisterScreen({ navigation }: any) {
                 placeholder={t("auth.emailPlaceholder")}
                 placeholderTextColor={colors.secondaryText}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(value) => {
+                  setEmail(value);
+                  if (submitted) setErrors((prev) => ({ ...prev, email: undefined }));
+                }}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 textContentType="emailAddress"
               />
+              {errors.email ? (
+                <Text style={[styles.errorText, { color: colors.danger, textAlign }]}>{errors.email}</Text>
+              ) : null}
               <TextInput
                 style={[
                   styles.input,
@@ -134,9 +160,15 @@ export function RegisterScreen({ navigation }: any) {
                 placeholder={t("auth.phone")}
                 placeholderTextColor={colors.secondaryText}
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(value) => {
+                  setPhone(value);
+                  if (submitted) setErrors((prev) => ({ ...prev, phone: undefined }));
+                }}
                 keyboardType="phone-pad"
               />
+              {errors.phone ? (
+                <Text style={[styles.errorText, { color: colors.danger, textAlign }]}>{errors.phone}</Text>
+              ) : null}
               <TextInput
                 style={[
                   styles.input,
@@ -151,16 +183,22 @@ export function RegisterScreen({ navigation }: any) {
                 placeholder={t("auth.passwordHint")}
                 placeholderTextColor={colors.secondaryText}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  if (submitted) setErrors((prev) => ({ ...prev, password: undefined }));
+                }}
                 secureTextEntry
                 textContentType="newPassword"
               />
+              {errors.password ? (
+                <Text style={[styles.errorText, { color: colors.danger, textAlign }]}>{errors.password}</Text>
+              ) : null}
             </View>
 
             <PrimaryButton
               title={t("auth.submitRegister")}
               onPress={handleRegister}
-              disabled={isLoading}
+              disabled={isLoading || Object.keys(errors).length > 0}
               style={styles.button}
             />
 
@@ -200,4 +238,5 @@ const styles = StyleSheet.create({
   button: { marginTop: 8, marginBottom: 8 },
   linkButton: { alignItems: "center", padding: 12 },
   linkText: { fontWeight: "600", textAlign: "center" },
+  errorText: { fontSize: 12, marginTop: -6, marginBottom: 8 },
 });

@@ -41,6 +41,14 @@ type PublicUserDto = {
   updatedAt: string;
 };
 
+export type RecipientLookup = {
+  dbUserId: number;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  referenceId: string;
+};
+
 type WalletDto = {
   id: number;
   totalBalance: string;
@@ -401,8 +409,9 @@ export async function recordTransferFromSuccess(params: {
   type: string;
   receiver: string;
   amount: string;
+  receiverDbUserId?: number | null;
   intermediaryId?: string | null;
-}): Promise<{ id: string; recorded: boolean }> {
+}): Promise<{ id: string; recorded: boolean; receiverName?: string; errorMessage?: string }> {
   if (!isApiConfigured()) {
     return { id: "AMN-" + Math.floor(Math.random() * 1_000_000), recorded: false };
   }
@@ -410,36 +419,67 @@ export async function recordTransferFromSuccess(params: {
   if (!uid) {
     return { id: "AMN-" + Math.floor(Math.random() * 1_000_000), recorded: false };
   }
-  let receiverId = parseNumericUserId(params.receiver);
+  let receiverId =
+    typeof params.receiverDbUserId === "number" && Number.isInteger(params.receiverDbUserId) && params.receiverDbUserId > 0
+      ? params.receiverDbUserId
+      : null;
   if (receiverId == null) {
     try {
-      const resolved = await apiRequest<{ dbUserId: number }>("/api/users/lookup-recipient?identifier=" + encodeURIComponent(params.receiver.trim()));
+      const resolved = await apiRequest<RecipientLookup>(
+        "/api/users/lookup-recipient?identifier=" + encodeURIComponent(params.receiver.trim())
+      );
       receiverId = resolved.dbUserId;
     } catch {
-      return { id: "AMN-" + Math.floor(Math.random() * 1_000_000), recorded: false };
+      receiverId = parseNumericUserId(params.receiver);
     }
+  }
+  if (receiverId == null) {
+    return {
+      id: "AMN-" + Math.floor(Math.random() * 1_000_000),
+      recorded: false,
+      errorMessage: "Recipient not found by reference or phone.",
+    };
   }
   const senderId = parseInt(uid, 10);
   const amountNum = Number.parseFloat(params.amount);
   if (Number.isNaN(amountNum) || amountNum <= 0) {
-    return { id: "AMN-" + Math.floor(Math.random() * 1_000_000), recorded: false };
+    return { id: "AMN-" + Math.floor(Math.random() * 1_000_000), recorded: false, errorMessage: "Invalid amount." };
   }
   const typeTag = params.type === "international" ? "international" : "local";
   try {
-    const created = await apiRequest<TransferDto>("/api/resources/transfers", {
+    const endpoint = typeTag === "local" ? "/api/resources/transfers/simple" : "/api/resources/transfers";
+    const created = await apiRequest<TransferDto>(endpoint, {
       method: "POST",
       body: {
-        senderId,
         receiverId,
         totalAmount: amountNum.toFixed(2),
         occurredAt: new Date().toISOString(),
         type: typeTag,
         status: "completed",
+        ...(typeTag !== "local" ? { senderId } : {}),
       },
     });
-    return { id: `TRX-${created.id}`, recorded: true };
+    return {
+      id: `TRX-${created.id}`,
+      recorded: true,
+      receiverName: created.receiver?.fullName || created.receiver?.email || params.receiver,
+    };
   } catch {
-    return { id: "AMN-" + Math.floor(Math.random() * 1_000_000), recorded: false };
+    return {
+      id: "AMN-" + Math.floor(Math.random() * 1_000_000),
+      recorded: false,
+      errorMessage: "Transfer failed on server. Please try again.",
+    };
+  }
+}
+
+export async function lookupTransferRecipient(identifier: string): Promise<RecipientLookup | null> {
+  const q = identifier.trim();
+  if (!q || !isApiConfigured()) return null;
+  try {
+    return await apiRequest<RecipientLookup>("/api/users/lookup-recipient?identifier=" + encodeURIComponent(q));
+  } catch {
+    return null;
   }
 }
 

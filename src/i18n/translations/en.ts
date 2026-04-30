@@ -28,6 +28,10 @@ export const en = {
     passwordHint: "Password (min. 8 characters)",
     submitRegister: "Register",
     hasAccount: "Already have an account? Sign in",
+    fieldRequired: "This field is required.",
+    invalidEmail: "Enter a valid email address.",
+    invalidIdentifier: "Enter a valid email or phone number.",
+    fullNameTooShort: "Enter your full name.",
   },
   settings: {
     title: "My account",
@@ -182,6 +186,12 @@ export const en = {
     invalidAmount: "Enter a valid amount greater than zero.",
     insufficientBalance: "Insufficient balance for this transfer.",
     badPassword: "Password is incorrect.",
+    recipientResolved: "Recipient found",
+    recipientName: "Recipient name",
+    recipientLookupHint: "We will verify the recipient before transfer.",
+    recipientResolving: "Verifying recipient…",
+    recipientNotFound: "Recipient not found by reference or phone number.",
+    recipientSelf: "You cannot transfer to yourself.",
     next: "Continue",
   },
   transfersIntl: {
@@ -206,6 +216,9 @@ export const en = {
     share: "Share",
     download: "Download",
     done: "Done",
+    failedTitle: "Transfer failed",
+    failedDescription: "The transfer could not be completed.",
+    backToTransfer: "Back to transfer",
   },
   envelopeCard: {
     strict: "Strict",

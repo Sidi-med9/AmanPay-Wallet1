@@ -51,6 +51,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",
+    // React Native/OkHttp may reuse ETag cache and return 304 with empty body,
+    // which breaks state refresh flows that expect fresh JSON payloads.
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
   };
   const token = options.accessToken !== undefined ? options.accessToken : authGetters.getAccessToken();
   if (token) {

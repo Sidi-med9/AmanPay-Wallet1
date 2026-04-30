@@ -22,7 +22,7 @@ import { TRANSFER_AUTH_MODE_KEY } from "../../constants/storageKeys";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Wallet, Folder, User, Banknote } from "lucide-react-native";
 import { ThemedMessageDialog } from "../../components/ThemedMessageDialog";
-import { verifyTransferPassword } from "../../services/amanpayApi";
+import { lookupTransferRecipient, type RecipientLookup, verifyTransferPassword } from "../../services/amanpayApi";
 
 type LocalAuthModule = {
   hasHardwareAsync: () => Promise<boolean>;
@@ -59,6 +59,9 @@ export const LocalTransferScreen = ({ navigation }: any) => {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [mode, setMode] = useState<"normal" | "envelope">("normal");
   const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
+  const [resolvedRecipientName, setResolvedRecipientName] = useState<string | null>(null);
+  const [resolvedRecipient, setResolvedRecipient] = useState<RecipientLookup | null>(null);
+  const [resolvingRecipient, setResolvingRecipient] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -86,9 +89,16 @@ export const LocalTransferScreen = ({ navigation }: any) => {
 
   const continueTransfer = () => {
     if (mode === "envelope") {
-      navigation.navigate("Envelopes", { receiver: receiver.trim(), amount, type: "local" });
+      navigation.navigate("Envelopes", { receiver: receiver.trim(), amount, type: "local", receiverName: resolvedRecipientName });
     } else {
-      navigation.navigate("Success", { receiver: receiver.trim(), amount, type: "local", transferMode: "normal" });
+      navigation.navigate("Success", {
+        receiver: receiver.trim(),
+        receiverName: resolvedRecipientName,
+        receiverDbUserId: resolvedRecipient?.dbUserId ?? null,
+        amount,
+        type: "local",
+        transferMode: "normal",
+      });
     }
   };
 
@@ -153,6 +163,21 @@ export const LocalTransferScreen = ({ navigation }: any) => {
       setDialog({ title: t("dialog.errorTitle"), message: t("transfersLocal.insufficientBalance") });
       return;
     }
+    setResolvingRecipient(true);
+    const lookup = await lookupTransferRecipient(receiver.trim());
+    setResolvingRecipient(false);
+    if (!lookup) {
+      setResolvedRecipient(null);
+      setResolvedRecipientName(null);
+      setDialog({ title: t("dialog.errorTitle"), message: t("transfersLocal.recipientNotFound") });
+      return;
+    }
+    if (String(user?.dbUserId ?? "") === String(lookup.dbUserId)) {
+      setDialog({ title: t("dialog.errorTitle"), message: t("transfersLocal.recipientSelf") });
+      return;
+    }
+    setResolvedRecipient(lookup);
+    setResolvedRecipientName(lookup.fullName || lookup.email);
     setConfirmVisible(true);
   };
 
@@ -195,9 +220,42 @@ export const LocalTransferScreen = ({ navigation }: any) => {
                 placeholder={t("transfersLocal.receiverPh")}
                 placeholderTextColor={colors.secondaryText}
                 value={receiver}
-                onChangeText={setReceiver}
+                onChangeText={(value) => {
+                  setReceiver(value);
+                  setResolvedRecipient(null);
+                  setResolvedRecipientName(null);
+                }}
               />
             </View>
+            <Text style={[styles.lookupHint, { color: colors.secondaryText, textAlign, fontFamily: DesignSystem.fonts.family }]}>
+              {resolvingRecipient ? t("transfersLocal.recipientResolving") : t("transfersLocal.recipientLookupHint")}
+            </Text>
+            {resolvedRecipient ? (
+              <View
+                style={[
+                  styles.recipientCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.primary,
+                    borderRadius: DesignSystem.borderRadius.lg,
+                  },
+                ]}
+              >
+                <View style={styles.recipientHeader}>
+                  <Text style={[styles.recipientBadge, { color: colors.primary, fontFamily: DesignSystem.fonts.family }]}>
+                    {t("transfersLocal.recipientResolved")}
+                  </Text>
+                </View>
+                <Text style={[styles.recipientName, { color: colors.text, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+                  {resolvedRecipient.fullName}
+                </Text>
+                <Text
+                  style={[styles.recipientMeta, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}
+                >
+                  {resolvedRecipient.referenceId} • {resolvedRecipient.phone || resolvedRecipient.email}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.inputSection}>
@@ -307,6 +365,11 @@ export const LocalTransferScreen = ({ navigation }: any) => {
             <Text style={[styles.modalDesc, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}>
               {t("transfersLocal.confirmSubtitle")}
             </Text>
+            {resolvedRecipientName ? (
+              <Text style={[styles.modalDesc, { color: colors.text, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+                {t("transfersLocal.recipientName")}: {resolvedRecipientName}
+              </Text>
+            ) : null}
 
             {authMode === "biometric" ? (
               <PrimaryButton
@@ -377,4 +440,10 @@ const styles = StyleSheet.create({
   modalInput: { height: 56, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, marginVertical: 12 },
   cancelBtn: { paddingVertical: 10, alignItems: "center" },
   cancelText: { fontSize: 14, fontWeight: "600" },
+  lookupHint: { fontSize: 12, marginTop: 8 },
+  recipientCard: { marginTop: 10, borderWidth: 1, padding: 12 },
+  recipientHeader: { marginBottom: 4 },
+  recipientBadge: { fontSize: 12, fontWeight: "700" },
+  recipientName: { fontSize: 16, fontWeight: "700" },
+  recipientMeta: { marginTop: 2, fontSize: 12 },
 });

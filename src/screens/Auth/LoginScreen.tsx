@@ -30,13 +30,25 @@ export function LoginScreen({ navigation }: any) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
+  const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
+  const [submitted, setSubmitted] = useState(false);
 
   const textAlign = useMemo(() => (isRtl ? "right" : "left"), [isRtl]);
 
   const handleLogin = async () => {
-    if (!identifier.trim() || !password) return;
+    setSubmitted(true);
+    const nextErrors: { identifier?: string; password?: string } = {};
+    const id = identifier.trim();
+    if (!id) {
+      nextErrors.identifier = t("auth.fieldRequired");
+    } else if (!id.includes("@") && id.replace(/\D/g, "").length < 5) {
+      nextErrors.identifier = t("auth.invalidIdentifier");
+    }
+    if (!password) nextErrors.password = t("auth.fieldRequired");
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     try {
-      await signIn({ identifier: identifier.trim(), password });
+      await signIn({ identifier: id, password });
     } catch (e) {
       const m = mapAuthErrorToDialog(e);
       const title = t(m.titleKey);
@@ -108,13 +120,21 @@ export function LoginScreen({ navigation }: any) {
                   placeholder={t("auth.loginIdentifierPlaceholder")}
                   placeholderTextColor={colors.secondaryText}
                   value={identifier}
-                  onChangeText={setIdentifier}
+                  onChangeText={(value) => {
+                    setIdentifier(value);
+                    if (submitted) setErrors((prev) => ({ ...prev, identifier: undefined }));
+                  }}
                   autoCapitalize="none"
                   keyboardType="default"
                   autoComplete="username"
                   textContentType="username"
                 />
               </View>
+              {errors.identifier ? (
+                <Text style={[styles.errorText, { color: colors.danger, textAlign }]}>
+                  {errors.identifier}
+                </Text>
+              ) : null}
 
               <View
                 style={[
@@ -129,11 +149,19 @@ export function LoginScreen({ navigation }: any) {
                   placeholder={t("auth.passwordPlaceholder")}
                   placeholderTextColor={colors.secondaryText}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(value) => {
+                    setPassword(value);
+                    if (submitted) setErrors((prev) => ({ ...prev, password: undefined }));
+                  }}
                   secureTextEntry
                   textContentType="password"
                 />
               </View>
+              {errors.password ? (
+                <Text style={[styles.errorText, { color: colors.danger, textAlign }]}>
+                  {errors.password}
+                </Text>
+              ) : null}
 
               <PrimaryButton
                 title={t("auth.signIn")}
@@ -233,4 +261,5 @@ const styles = StyleSheet.create({
   forgotText: { opacity: 0.85 },
   registerBtn: { alignItems: "center", marginTop: 8, padding: 10 },
   registerText: { fontWeight: "bold" },
+  errorText: { fontSize: 12, marginTop: -6, marginBottom: 10 },
 });

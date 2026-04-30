@@ -7,14 +7,16 @@ import { useWallet } from "../context/WalletContext";
 import { useAuth } from "../context/AuthContext";
 import { DesignSystem } from "../constants/DesignSystem";
 import { isApiConfigured } from "../config/api";
-import { recordTransferFromSuccess } from "../services/amanpayApi";
+import { lookupTransferRecipient, recordTransferFromSuccess } from "../services/amanpayApi";
 import { DEFAULT_CURRENCY } from "../constants/appDefaults";
 import { TRX_STATUS_COMPLETED } from "../utils/trxStatus";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { ThemedMessageDialog } from "../components/ThemedMessageDialog";
 import { CheckCircle2, Download, Share2, Copy } from "lucide-react-native";
 
 export const SuccessScreen = ({ route, navigation }: any) => {
-  const { receiver, amount, type, intermediaryId, transferMode, envelopeMode, envelopes } = route.params || {};
+  const { receiver, receiverName, receiverDbUserId, amount, type, intermediaryId, transferMode, envelopeMode, envelopes } =
+    route.params || {};
   const { colors, isDark } = useTheme();
   const { t, i18n } = useTranslation();
   const { addTransaction, intermediaries, refreshData } = useWallet();
@@ -23,6 +25,9 @@ export const SuccessScreen = ({ route, navigation }: any) => {
 
   const [loading, setLoading] = useState(true);
   const [trxId, setTrxId] = useState("");
+  const [displayReceiver, setDisplayReceiver] = useState(String(receiverName || receiver || ""));
+  const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
+  const [transferFailed, setTransferFailed] = useState(false);
 
   useEffect(() => {
     const processTransfer = async () => {
@@ -34,32 +39,30 @@ export const SuccessScreen = ({ route, navigation }: any) => {
       let newTrxId = "AMN-" + Math.floor(Math.random() * 1000000);
 
       if (isApiConfigured()) {
+        const recipient = await lookupTransferRecipient(recv);
+        if (recipient?.fullName) {
+          setDisplayReceiver(recipient.fullName);
+        }
         const r = await recordTransferFromSuccess({
           type: type ?? "local",
           receiver: recv,
           amount: amt,
+          receiverDbUserId:
+            typeof receiverDbUserId === "number" && Number.isInteger(receiverDbUserId) ? receiverDbUserId : null,
           intermediaryId: intermediaryId ?? null,
         });
         newTrxId = r.id;
         if (r.recorded) {
+          setDisplayReceiver(r.receiverName || String(receiverName || recv));
           await refreshData();
         } else {
-          await addTransaction({
-            id: newTrxId,
-            type,
-            sender: user?.name,
-            receiver: recv,
-            amount: parseFloat(amt),
-            currency: DEFAULT_CURRENCY,
-            date: new Date().toISOString(),
-            status: TRX_STATUS_COMPLETED,
-            outgoing: true,
-            transferMode,
-            envelopeMode,
-            intermediary: intermediaryId
-              ? intermediaries.find((i) => String(i.id) === String(intermediaryId))?.name
-              : null,
+          setTransferFailed(true);
+          setDialog({
+            title: t("dialog.errorTitle"),
+            message: r.errorMessage || "Transfer failed and was not saved. Please retry.",
           });
+          setLoading(false);
+          return;
         }
       } else {
         await addTransaction({
@@ -98,8 +101,52 @@ export const SuccessScreen = ({ route, navigation }: any) => {
     );
   }
 
+  if (transferFailed) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <ThemedMessageDialog
+          visible={!!dialog}
+          title={dialog?.title ?? ""}
+          message={dialog?.message ?? ""}
+          onDismiss={() => setDialog(null)}
+          variant="error"
+        />
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.successTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+            {t("success.failedTitle")}
+          </Text>
+          <Text
+            style={[
+              styles.loadingText,
+              { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign: "center" },
+            ]}
+          >
+            {t("success.failedDescription")}
+          </Text>
+        </View>
+        <View style={styles.footer}>
+          <PrimaryButton
+            title={t("success.backToTransfer")}
+            onPress={() => navigation.goBack()}
+            style={{ height: 60 }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <ThemedMessageDialog
+        visible={!!dialog}
+        title={dialog?.title ?? ""}
+        message={dialog?.message ?? ""}
+        onDismiss={() => {
+          setDialog(null);
+          navigation.goBack();
+        }}
+        variant="error"
+      />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={[styles.checkContainer, { backgroundColor: colors.success + "15" }]}>
@@ -121,7 +168,7 @@ export const SuccessScreen = ({ route, navigation }: any) => {
         >
           <View style={styles.detailRow}>
             <Text style={[styles.detailValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
-              {receiver}
+              {displayReceiver}
             </Text>
             <Text style={[styles.detailLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
               {t("success.receiver")}

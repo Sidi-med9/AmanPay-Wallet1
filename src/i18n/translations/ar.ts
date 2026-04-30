@@ -28,6 +28,10 @@ export const ar = {
     passwordHint: "كلمة المرور (8 أحرف على الأقل)",
     submitRegister: "تسجيل",
     hasAccount: "لديك حساب بالفعل؟ تسجيل الدخول",
+    fieldRequired: "هذا الحقل مطلوب.",
+    invalidEmail: "يرجى إدخال بريد إلكتروني صحيح.",
+    invalidIdentifier: "أدخل بريداً إلكترونياً صحيحاً أو رقم هاتف صالحاً.",
+    fullNameTooShort: "يرجى إدخال الاسم الكامل.",
   },
   settings: {
     title: "حسابي",
@@ -182,6 +186,12 @@ export const ar = {
     invalidAmount: "أدخل مبلغاً صحيحاً أكبر من صفر.",
     insufficientBalance: "الرصيد غير كافٍ لإتمام التحويل.",
     badPassword: "كلمة المرور غير صحيحة.",
+    recipientResolved: "تم العثور على المستلم",
+    recipientName: "اسم المستلم",
+    recipientLookupHint: "سيتم التحقق من المستلم قبل تنفيذ التحويل.",
+    recipientResolving: "جار التحقق من المستلم…",
+    recipientNotFound: "لم يتم العثور على المستلم عبر المعرف أو رقم الهاتف.",
+    recipientSelf: "لا يمكنك التحويل إلى نفسك.",
     next: "متابعة",
   },
   transfersIntl: {
@@ -206,6 +216,9 @@ export const ar = {
     share: "مشاركة",
     download: "تحميل",
     done: "تم",
+    failedTitle: "فشل التحويل",
+    failedDescription: "تعذر إكمال عملية التحويل.",
+    backToTransfer: "العودة للتحويل",
   },
   envelopeCard: {
     strict: "صارم",
