@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { ShoppingCart, BookOpen, Car, AlertTriangle, Wallet } from 'lucide-react-native';
 
 interface EnvelopeProps {
@@ -10,6 +11,7 @@ interface EnvelopeProps {
 }
 
 export const EnvelopeCard: React.FC<{ envelope: EnvelopeProps }> = ({ envelope }) => {
+  const { t } = useTranslation();
   const getIcon = () => {
     switch (envelope.name) {
       case 'الطعام': return <ShoppingCart size={24} color="#0EA5E9" />;
@@ -28,7 +30,9 @@ export const EnvelopeCard: React.FC<{ envelope: EnvelopeProps }> = ({ envelope }
           <Text style={styles.name}>{envelope.name}</Text>
           <Text style={styles.type}>{envelope.type}</Text>
         </View>
-        <Text style={styles.amount}>{envelope.amount.toLocaleString()} MRU</Text>
+        <Text style={styles.amount}>
+          {envelope.amount.toLocaleString()} {t("common.currency")}
+        </Text>
       </View>
       <Text style={styles.description}>{envelope.description}</Text>
     </View>

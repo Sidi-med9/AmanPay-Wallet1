@@ -1,4 +1,5 @@
 import { registerRootComponent } from 'expo';
+import './src/i18n/config';
 
 import App from './App';
 

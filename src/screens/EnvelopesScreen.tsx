@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
-import { useWallet } from '../context/WalletContext';
-import { DesignSystem } from '../constants/DesignSystem';
+import React, { useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import { useTheme } from "../context/ThemeContext";
+import { useWallet } from "../context/WalletContext";
+import { DesignSystem } from "../constants/DesignSystem";
+import { DEFAULT_CURRENCY } from "../constants/appDefaults";
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ShieldAlert, ShieldCheck, Plus, CheckSquare, Square, Info, ChevronLeft, LayoutGrid } from 'lucide-react-native';
 import { CreateCategoryModal } from '../components/CreateCategoryModal';
@@ -11,7 +14,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 export const EnvelopesScreen = ({ route, navigation }: any) => {
   const { receiver, amount, type, country, intermediaryId } = route.params || {};
   const { colors, isDark } = useTheme();
-  const { categories } = useWallet();
+  const { t, i18n } = useTranslation();
+  const { categories, dashboard } = useWallet();
+  const isRtl = i18n.dir() === "rtl";
+  const textAlign = isRtl ? "right" : "left";
+  const cur = dashboard?.currency ?? DEFAULT_CURRENCY;
   
   const [envelopeMode, setEnvelopeMode] = useState<'strict' | 'flexible'>('flexible');
   const [modalVisible, setModalVisible] = useState(false);
@@ -72,19 +79,30 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
             colors={isDark ? ['#1E293B', '#0F172A'] : [colors.primary, '#0097A7']}
             style={[styles.summaryCard, { borderRadius: DesignSystem.borderRadius.xxl }]}
           >
-            <Text style={[styles.summaryLabel, { fontFamily: DesignSystem.fonts.family }]}>إجمالي المبلغ المتاح</Text>
-            <Text style={[styles.summaryValue, { fontFamily: DesignSystem.fonts.family }]}>{totalAmount.toLocaleString()} MRU</Text>
+            <Text style={[styles.summaryLabel, { fontFamily: DesignSystem.fonts.family }]}>{t("envelopes.totalAvailable")}</Text>
+            <Text style={[styles.summaryValue, { fontFamily: DesignSystem.fonts.family }]}>
+              {totalAmount.toLocaleString()} {cur}
+            </Text>
             <View style={styles.remainingRow}>
-              <View style={[styles.remainingBadge, { backgroundColor: remaining < 0 ? colors.danger : 'rgba(255,255,255,0.2)' }]}>
+              <View style={[styles.remainingBadge, { backgroundColor: remaining < 0 ? colors.danger : "rgba(255,255,255,0.2)" }]}>
                 <Text style={[styles.remainingText, { fontFamily: DesignSystem.fonts.family }]}>
-                  {remaining === 0 ? 'موزع بالكامل' : `المتبقي: ${remaining.toLocaleString()} MRU`}
+                  {remaining === 0
+                    ? t("envelopes.fullyDistributed")
+                    : t("envelopes.remaining", { amount: remaining.toLocaleString(), currency: cur })}
                 </Text>
               </View>
             </View>
           </LinearGradient>
 
-          <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>طريقة عمل المحافظ</Text>
-          <View style={styles.modesContainer}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: colors.text, fontFamily: DesignSystem.fonts.family, textAlign },
+            ]}
+          >
+            {t("envelopes.modesTitle")}
+          </Text>
+          <View style={[styles.modesContainer, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
             <TouchableOpacity 
               style={[
                 styles.modeCard, 
@@ -94,8 +112,12 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
               onPress={() => setEnvelopeMode('strict')}
             >
               <ShieldAlert color={envelopeMode === 'strict' ? colors.danger : colors.secondaryText} size={24} />
-              <Text style={[styles.modeTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>صارم (Strict)</Text>
-              <Text style={[styles.modeDesc, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>لا يمكن نقل المبلغ</Text>
+              <Text style={[styles.modeTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+                {t("envelopes.strictTitle")}
+              </Text>
+              <Text style={[styles.modeDesc, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
+                {t("envelopes.strictDesc")}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -107,17 +129,30 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
               onPress={() => setEnvelopeMode('flexible')}
             >
               <ShieldCheck color={envelopeMode === 'flexible' ? colors.success : colors.secondaryText} size={24} />
-              <Text style={[styles.modeTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>مرن (Flexible)</Text>
-              <Text style={[styles.modeDesc, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>يمكن نقل المبلغ</Text>
+              <Text style={[styles.modeTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+                {t("envelopes.flexTitle")}
+              </Text>
+              <Text style={[styles.modeDesc, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
+                {t("envelopes.flexDesc")}
+              </Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.headerRow}>
             <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addBtn}>
               <Plus color={colors.primary} size={18} />
-              <Text style={[styles.addBtnText, { color: colors.primary, fontFamily: DesignSystem.fonts.family }]}>إنشاء محفظة</Text>
+              <Text style={[styles.addBtnText, { color: colors.primary, fontFamily: DesignSystem.fonts.family }]}>
+                {t("envelopes.createWallet")}
+              </Text>
             </TouchableOpacity>
-            <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family, marginTop: 0 }]}>توزيع المبالغ</Text>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.text, fontFamily: DesignSystem.fonts.family, marginTop: 0, textAlign },
+              ]}
+            >
+              {t("envelopes.allocationTitle")}
+            </Text>
           </View>
 
           {categories.map((cat) => {
@@ -145,15 +180,16 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
 
                 {isSelected && (
                   <View style={[styles.amountWrapper, { borderTopColor: colors.border }]}>
-                    <Text style={[styles.currencyLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>MRU</Text>
+                    <Text style={[styles.currencyLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
+                      {cur}
+                    </Text>
                     <TextInput
-                      style={[styles.amountInput, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}
+                      style={[styles.amountInput, { color: colors.text, fontFamily: DesignSystem.fonts.family, textAlign }]}
                       value={allocations[cat.id]}
                       onChangeText={(val) => updateAmount(cat.id, val)}
                       keyboardType="numeric"
-                      placeholder="0.00"
+                      placeholder={t("envelopes.amountPlaceholder")}
                       placeholderTextColor={colors.secondaryText}
-                      textAlign="right"
                     />
                   </View>
                 )}
@@ -163,12 +199,7 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
 
         </ScrollView>
         <View style={styles.footer}>
-          <PrimaryButton 
-            title="تأكيد ومتابعة" 
-            onPress={handleConfirm} 
-            disabled={!isValid}
-            style={{ height: 60 }}
-          />
+          <PrimaryButton title={t("envelopes.confirm")} onPress={handleConfirm} disabled={!isValid} style={{ height: 60 }} />
         </View>
       </KeyboardAvoidingView>
 
@@ -187,7 +218,7 @@ const styles = StyleSheet.create({
   remainingBadge: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
   remainingText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, marginTop: 8, textAlign: 'right' },
-  modesContainer: { flexDirection: 'row-reverse', gap: 16, marginBottom: 32 },
+  modesContainer: { gap: 16, marginBottom: 32 },
   modeCard: { flex: 1, padding: 20, borderWidth: 1, alignItems: 'center' },
   modeTitle: { fontSize: 15, fontWeight: 'bold', marginTop: 12, marginBottom: 4 },
   modeDesc: { fontSize: 11, textAlign: 'center' },

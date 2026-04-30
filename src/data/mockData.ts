@@ -1,17 +1,22 @@
+import { DEFAULT_CURRENCY } from "../constants/appDefaults";
+import { TRX_STATUS_COMPLETED } from "../utils/trxStatus";
+
 export const mockUser = {
-  id: "USR-001",
+  id: "b7c50c5e-9b8a-4be5-9205-341f39687f0d",
+  dbUserId: "1",
+  referenceId: "AP7M4K9Q2R",
   name: "Mohamed Ahmed",
   email: "mohamed@amanpay.demo",
   phone: "+222 30 12 34 56",
-  avatar: "https://i.pravatar.cc/150?u=mohamed",
+  avatar: "https://api.dicebear.com/7.x/avataaars/png?seed=mohamed",
   language: "ar",
-  theme: "dark"
+  theme: "dark",
 };
 
 export const mockDashboardData = {
   appName: "AmanPay",
   balance: 24500,
-  currency: "MRU",
+  currency: DEFAULT_CURRENCY,
   activeEnvelopes: 4,
   pendingApprovals: 2,
   envelopes: [
@@ -19,8 +24,8 @@ export const mockDashboardData = {
     { categoryId: "cat2", balance: 1500, mode: "strict" },
     { categoryId: "cat3", balance: 1000, mode: "strict" },
     { categoryId: "cat4", balance: 1000, mode: "flexible" },
-    { categoryId: "cat9", balance: 500, mode: "flexible" }
-  ]
+    { categoryId: "cat9", balance: 500, mode: "flexible" },
+  ],
 };
 
 export const mockCategories = [
@@ -42,11 +47,12 @@ export const mockTransactions = [
     sender: "Mohamed Ahmed",
     receiver: "Fatima",
     amount: 2000,
-    currency: "MRU",
+    currency: DEFAULT_CURRENCY,
     date: "2024-05-15T10:30:00Z",
-    status: "مكتمل",
+    status: TRX_STATUS_COMPLETED,
+    outgoing: true,
     transferMode: "envelope",
-    envelopeMode: "strict"
+    envelopeMode: "strict",
   },
   {
     id: "TRX-102",
@@ -54,11 +60,12 @@ export const mockTransactions = [
     sender: "Mohamed Ahmed",
     receiver: "Ali",
     amount: 150,
-    currency: "USD",
+    currency: DEFAULT_CURRENCY,
     date: "2024-05-12T14:20:00Z",
-    status: "مكتمل",
+    status: TRX_STATUS_COMPLETED,
+    outgoing: true,
     transferMode: "normal",
-    intermediary: "Western Union"
+    intermediary: "Western Union",
   },
   {
     id: "TRX-103",
@@ -66,11 +73,12 @@ export const mockTransactions = [
     sender: "Sidi",
     receiver: "Mohamed Ahmed",
     amount: 5000,
-    currency: "MRU",
+    currency: DEFAULT_CURRENCY,
     date: "2024-05-10T09:15:00Z",
-    status: "مكتمل",
-    transferMode: "normal"
-  }
+    status: TRX_STATUS_COMPLETED,
+    outgoing: false,
+    transferMode: "normal",
+  },
 ];
 
 export const mockIntermediaries = [
@@ -84,7 +92,7 @@ export const mockIntermediaries = [
     reliability: "99.9%",
     rating: 4.9,
     status: "available",
-    tags: ["Fastest", "Recommended"]
+    tags: ["Fastest", "Recommended"],
   },
   {
     id: "int2",
@@ -96,7 +104,7 @@ export const mockIntermediaries = [
     reliability: "98.5%",
     rating: 4.5,
     status: "available",
-    tags: ["Cheapest"]
+    tags: ["Cheapest"],
   },
   {
     id: "int3",
@@ -108,8 +116,8 @@ export const mockIntermediaries = [
     reliability: "99.0%",
     rating: 4.2,
     status: "busy",
-    tags: []
-  }
+    tags: [],
+  },
 ];
 
 export const mockReports = {
@@ -119,5 +127,5 @@ export const mockReports = {
   transfersCount: 45,
   localCount: 30,
   internationalCount: 15,
-  envelopeCount: 20
+  envelopeCount: 20,
 };

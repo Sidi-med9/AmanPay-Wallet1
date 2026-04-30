@@ -1,7 +1,8 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, View } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
-import { DesignSystem } from '../constants/DesignSystem';
+import React from "react";
+import { Pressable, Text, StyleSheet, StyleProp, ViewStyle, View } from "react-native";
+import { useTheme } from "../context/ThemeContext";
+import { DesignSystem, MIN_TOUCH_TARGET } from "../constants/DesignSystem";
+import { getClampedFontScale } from "../hooks/useResponsiveLayout";
 
 interface PrimaryButtonProps {
   title: string;
@@ -13,48 +14,53 @@ interface PrimaryButtonProps {
 
 export const PrimaryButton: React.FC<PrimaryButtonProps> = ({ title, onPress, disabled, style, icon }) => {
   const { colors } = useTheme();
-  
+  const labelSize = Math.round(18 / getClampedFontScale());
+
   return (
-    <TouchableOpacity
-      style={[
-        styles.button, 
-        { backgroundColor: colors.primary, borderRadius: DesignSystem.borderRadius.xl },
-        disabled && styles.disabled, 
-        style
-      ]}
-      onPress={onPress}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
-      activeOpacity={0.8}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.button,
+        {
+          backgroundColor: colors.primary,
+          borderRadius: DesignSystem.borderRadius.xl,
+          opacity: disabled ? 0.5 : pressed ? 0.92 : 1,
+          transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
+        },
+        style,
+      ]}
+      android_ripple={{ color: "rgba(255,255,255,0.22)" }}
     >
       <View style={styles.content}>
         {icon && <View style={styles.iconContainer}>{icon}</View>}
-        <Text style={[styles.text, { fontFamily: DesignSystem.fonts.family }]}>{title}</Text>
+        <Text style={[styles.text, { fontFamily: DesignSystem.fonts.family, fontSize: labelSize }]}>{title}</Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: MIN_TOUCH_TARGET + 6,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
     ...DesignSystem.shadows.medium,
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconContainer: {
     marginRight: 10,
   },
-  disabled: {
-    opacity: 0.5,
-  },
   text: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: "#FFFFFF",
+    fontWeight: "bold",
   },
 });

@@ -1,4 +1,11 @@
+/** Minimum touch target (dp) — WCAG-style comfort */
+export const MIN_TOUCH_TARGET = 44;
+
 export const DesignSystem = {
+  animation: {
+    fast: 150,
+    normal: 280,
+  },
   borderRadius: {
     xs: 4,
     sm: 8,
@@ -32,6 +39,6 @@ export const DesignSystem = {
     },
   },
   fonts: {
-    family: 'Rubik',
-  }
+    family: "Rubik",
+  },
 };
