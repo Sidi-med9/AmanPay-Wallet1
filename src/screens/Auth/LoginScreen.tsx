@@ -15,13 +15,13 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { DesignSystem } from "../../constants/DesignSystem";
 import { PrimaryButton } from "../../components/PrimaryButton";
-import { Lock, Mail } from "lucide-react-native";
+import { Fingerprint, Lock, Mail } from "lucide-react-native";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { ThemedMessageDialog } from "../../components/ThemedMessageDialog";
 import { mapAuthErrorToDialog } from "../../utils/mapAuthError";
 
 export function LoginScreen({ navigation }: any) {
-  const { signIn, isLoading } = useAuth();
+  const { signIn, signInWithBiometric, canBiometricLogin, isLoading } = useAuth();
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const { horizontalPadding, centeredInner, scaleFont, insets, hitSlop } = useResponsiveLayout();
@@ -45,6 +45,19 @@ export function LoginScreen({ navigation }: any) {
         message = `${message}\n\n${m.messageRaw}`;
       }
       setDialog({ title, message });
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      await signInWithBiometric();
+    } catch (e: any) {
+      const msg = typeof e?.message === "string" ? e.message : "";
+      if (msg === "BIOMETRIC_CANCELLED") return;
+      setDialog({
+        title: t("dialog.errorTitle"),
+        message: t("auth.biometricLoginFailed"),
+      });
     }
   };
 
@@ -129,6 +142,27 @@ export function LoginScreen({ navigation }: any) {
                 style={styles.loginBtn}
               />
 
+              {canBiometricLogin ? (
+                <Pressable
+                  onPress={handleBiometricLogin}
+                  style={({ pressed }) => [
+                    styles.biometricBtn,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.card,
+                      opacity: pressed ? 0.85 : 1,
+                    },
+                  ]}
+                  android_ripple={ripple}
+                  hitSlop={hitSlop}
+                >
+                  <Fingerprint color={colors.primary} size={18} />
+                  <Text style={[styles.biometricText, { color: colors.text, fontSize: scaleFont(14) }]}>
+                    {t("auth.signInWithBiometrics")}
+                  </Text>
+                </Pressable>
+              ) : null}
+
               <Pressable
                 style={({ pressed }) => [styles.linkWrap, pressed && { opacity: 0.75 }]}
                 android_ripple={ripple}
@@ -184,6 +218,17 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   loginBtn: { marginTop: 12 },
+  biometricBtn: {
+    marginTop: 10,
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: DesignSystem.borderRadius.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  biometricText: { fontWeight: "600" },
   linkWrap: { alignItems: "center", marginTop: 18, paddingVertical: 8 },
   forgotText: { opacity: 0.85 },
   registerBtn: { alignItems: "center", marginTop: 8, padding: 10 },

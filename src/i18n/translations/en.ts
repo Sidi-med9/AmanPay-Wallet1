@@ -17,6 +17,8 @@ export const en = {
     loginIdentifierPlaceholder: "Email or phone number",
     passwordPlaceholder: "Password",
     signIn: "Sign in",
+    signInWithBiometrics: "Sign in with Face ID / Fingerprint",
+    biometricLoginFailed: "Biometric sign-in failed. Please use your password.",
     forgotPassword: "Forgot password?",
     createAccount: "Create an account",
     registerTitle: "Create account",

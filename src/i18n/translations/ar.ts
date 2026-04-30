@@ -17,6 +17,8 @@ export const ar = {
     loginIdentifierPlaceholder: "البريد الإلكتروني أو رقم الهاتف",
     passwordPlaceholder: "كلمة المرور",
     signIn: "تسجيل الدخول",
+    signInWithBiometrics: "تسجيل الدخول بالبصمة أو الوجه",
+    biometricLoginFailed: "فشل تسجيل الدخول البيومتري. استخدم كلمة المرور.",
     forgotPassword: "نسيت كلمة المرور؟",
     createAccount: "تسجيل حساب جديد",
     registerTitle: "إنشاء حساب جديد",

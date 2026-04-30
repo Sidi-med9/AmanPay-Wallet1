@@ -13,6 +13,7 @@ import {
   type AppUser,
 } from "../services/amanpayApi";
 import { setApiAuthGetters, clearApiAuthGetters } from "../services/apiClient";
+import { BIOMETRIC_LOGIN_IDENTIFIER_KEY, BIOMETRIC_LOGIN_PASSWORD_KEY } from "../constants/storageKeys";
 
 const USER_KEY = "@user";
 const ACCESS_KEY = "@accessToken";
@@ -23,7 +24,9 @@ interface AuthContextType {
   user: AppUser | null;
   isLoading: boolean;
   accessToken: string | null;
+  canBiometricLogin: boolean;
   signIn: (credentials: { identifier: string; password: string }) => Promise<void>;
+  signInWithBiometric: () => Promise<void>;
   signUp: (data: { name: string; email: string; phone?: string; password: string }) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<AppUser>) => Promise<void>;
@@ -51,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AppUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [canBiometricLogin, setCanBiometricLogin] = useState(false);
 
   useLayoutEffect(() => {
     setApiAuthGetters({
@@ -66,12 +70,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // App re-open should always require a fresh login.
-        await AsyncStorage.multiRemove([USER_KEY, ACCESS_KEY, REFRESH_KEY]);
-        setUser(null);
-        setAccessToken(null);
+        const [[, userRaw], [, accessRaw], [, bioIdentifier], [, bioPassword]] = await AsyncStorage.multiGet([
+          USER_KEY,
+          ACCESS_KEY,
+          BIOMETRIC_LOGIN_IDENTIFIER_KEY,
+          BIOMETRIC_LOGIN_PASSWORD_KEY,
+        ]);
+        setCanBiometricLogin(Boolean(bioIdentifier && bioPassword));
+        if (userRaw && accessRaw) {
+          const parsed = JSON.parse(userRaw) as AppUser;
+          const hydrated = await applyProfileOverrides(sanitizeAvatar(parsed));
+          setUser(hydrated);
+          setAccessToken(accessRaw);
+        } else {
+          setUser(null);
+          setAccessToken(null);
+        }
       } catch (e) {
         console.error(e);
+        setUser(null);
+        setAccessToken(null);
       } finally {
         setIsLoading(false);
       }
@@ -86,9 +104,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const u = await applyProfileOverrides(sanitizeAvatar(next));
       setUser(u);
       setAccessToken(at);
-      await AsyncStorage.setItem(REFRESH_KEY, rt);
+      await AsyncStorage.multiSet([
+        [USER_KEY, JSON.stringify(u)],
+        [ACCESS_KEY, at],
+        [REFRESH_KEY, rt],
+        [BIOMETRIC_LOGIN_IDENTIFIER_KEY, credentials.identifier.trim()],
+        [BIOMETRIC_LOGIN_PASSWORD_KEY, credentials.password],
+      ]);
+      setCanBiometricLogin(true);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const signInWithBiometric = async () => {
+    setIsLoading(true);
+    try {
+      const localAuth = require("expo-local-authentication") as {
+        hasHardwareAsync: () => Promise<boolean>;
+        isEnrolledAsync: () => Promise<boolean>;
+        authenticateAsync: (options: {
+          promptMessage: string;
+          cancelLabel?: string;
+          fallbackLabel?: string;
+        }) => Promise<{ success: boolean }>;
+      };
+      const [[, identifier], [, password]] = await AsyncStorage.multiGet([
+        BIOMETRIC_LOGIN_IDENTIFIER_KEY,
+        BIOMETRIC_LOGIN_PASSWORD_KEY,
+      ]);
+      const [hasHardware, enrolled] = await Promise.all([localAuth.hasHardwareAsync(), localAuth.isEnrolledAsync()]);
+      if (!identifier || !password || !hasHardware || !enrolled) {
+        throw new Error("BIOMETRIC_LOGIN_NOT_READY");
+      }
+      const result = await localAuth.authenticateAsync({
+        promptMessage: "Sign in with biometrics",
+        cancelLabel: "Cancel",
+        fallbackLabel: "Use password",
+      });
+      if (!result.success) {
+        throw new Error("BIOMETRIC_CANCELLED");
+      }
+      await signIn({ identifier, password });
+    } catch (e) {
+      setIsLoading(false);
+      throw e;
     }
   };
 
@@ -99,7 +159,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const u = await applyProfileOverrides(sanitizeAvatar(next));
       setUser(u);
       setAccessToken(at);
-      await AsyncStorage.setItem(REFRESH_KEY, rt);
+      await AsyncStorage.multiSet([
+        [USER_KEY, JSON.stringify(u)],
+        [ACCESS_KEY, at],
+        [REFRESH_KEY, rt],
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -109,6 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     const updatedUser = sanitizeAvatar({ ...user, ...data });
     setUser(updatedUser);
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
     await AsyncStorage.setItem(PROFILE_OVERRIDES_PREFIX + user.id, JSON.stringify(data));
   };
 
@@ -133,7 +198,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         isLoading,
         accessToken,
+        canBiometricLogin,
         signIn,
+        signInWithBiometric,
         signUp,
         signOut,
         updateProfile,

@@ -9,6 +9,7 @@ interface Colors {
   text: string;
   secondaryText: string;
   primary: string;
+  warning: string;
   danger: string;
   success: string;
   border: string;
@@ -28,6 +29,7 @@ const lightColors: Colors = {
   text: '#0F172A',
   secondaryText: '#64748B',
   primary: '#00D2D3',
+  warning: '#F59E0B',
   danger: '#EF4444',
   success: '#10B981',
   border: '#E2E8F0',
@@ -40,6 +42,7 @@ const darkColors: Colors = {
   text: '#FFFFFF',
   secondaryText: '#94A3B8',
   primary: '#00D2D3',
+  warning: '#FBBF24',
   danger: '#F87171',
   success: '#34D399',
   border: '#1E293B',
