@@ -8,11 +8,11 @@ import { useAuth } from "../context/AuthContext";
 import { DesignSystem } from "../constants/DesignSystem";
 import { DEFAULT_CURRENCY } from "../constants/appDefaults";
 import { useResponsiveLayout } from "../hooks/useResponsiveLayout";
-import { Plus, ChevronRight, ChevronLeft, ArrowUpRight } from "lucide-react-native";
+import { Plus, ArrowUpRight } from "lucide-react-native";
 import { CreateCategoryModal } from "../components/CreateCategoryModal";
 import { LinearGradient } from "expo-linear-gradient";
 
-export const WalletScreen = ({ navigation }: any) => {
+export const WalletScreen = () => {
   const { t, i18n } = useTranslation();
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
@@ -20,7 +20,6 @@ export const WalletScreen = ({ navigation }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
   const { horizontalPadding, centeredInner, insets } = useResponsiveLayout();
   const isRtl = i18n.dir() === "rtl";
-  const BackChevron = isRtl ? ChevronLeft : ChevronRight;
 
   const currency = dashboard?.currency ?? DEFAULT_CURRENCY;
 
@@ -44,10 +43,8 @@ export const WalletScreen = ({ navigation }: any) => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={[centeredInner, { alignSelf: "center" }]}>
-          <View style={[styles.header, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <BackChevron color={colors.text} size={24} />
-            </TouchableOpacity>
+          <View style={styles.header}>
+            <View style={styles.headerSpacer} />
             <Text style={[styles.headerTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
               {t("wallet.headerTitle")}
             </Text>
@@ -209,8 +206,8 @@ export const WalletScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flexGrow: 1 },
-  header: { justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-  backBtn: { padding: 4 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
+  headerSpacer: { width: 36, height: 36 },
   headerTitle: { fontSize: 18, fontWeight: "bold", flex: 1, textAlign: "center" },
   miniAvatar: { width: 36, height: 36, borderRadius: 18 },
   mainCard: { padding: 24, borderRadius: 24, borderWidth: 1, marginBottom: 16, ...DesignSystem.shadows.light },

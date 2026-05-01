@@ -31,7 +31,6 @@ import {
   Edit3,
   X,
   User,
-  Bell,
   Lock,
 } from "lucide-react-native";
 import type { AppLocale } from "../i18n/config";
@@ -151,23 +150,27 @@ export const SettingsScreen = () => {
     setEditModalVisible(false);
   };
 
-  const SettingRow = ({ icon, label, onPress, showSwitch, switchValue, onSwitchChange }: any) => (
+  const SettingRow = ({ icon, label, onPress, showSwitch, switchValue, onSwitchChange, noBorder }: any) => (
     <TouchableOpacity
-      style={[styles.row, { borderBottomColor: colors.border }]}
+      style={[styles.row, { borderBottomColor: colors.border }, noBorder && styles.rowNoBorder]}
       onPress={onPress}
       disabled={showSwitch}
     >
-      {showSwitch ? (
-        <Switch
-          value={switchValue}
-          onValueChange={onSwitchChange}
-          trackColor={{ true: colors.primary, false: colors.border }}
-        />
-      ) : (
-        <ChevronLeft color={colors.secondaryText} size={20} />
-      )}
+      <View style={styles.rowAction}>
+        {showSwitch ? (
+          <Switch
+            value={switchValue}
+            onValueChange={onSwitchChange}
+            trackColor={{ true: colors.primary, false: colors.border }}
+          />
+        ) : (
+          <ChevronLeft color={colors.secondaryText} size={20} />
+        )}
+      </View>
       <View style={styles.rowRight}>
-        <Text style={[styles.rowText, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{label}</Text>
+        <Text style={[styles.rowText, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+          {label}
+        </Text>
         <View style={[styles.iconWrap, { backgroundColor: isDark ? "#1E293B" : "#F1F5F9" }]}>{icon}</View>
       </View>
     </TouchableOpacity>
@@ -230,13 +233,13 @@ export const SettingsScreen = () => {
               label={t("settings.editProfile")}
               onPress={() => setEditModalVisible(true)}
             />
-            <SettingRow icon={<Bell color={colors.primary} size={20} />} label={t("settings.notifications")} />
             <SettingRow
               icon={<Lock color={colors.primary} size={20} />}
               label={t("settings.transferAuthBiometric")}
               showSwitch
               switchValue={biometricEnabled}
               onSwitchChange={handleBiometricToggle}
+              noBorder
             />
             {!biometricAvailable ? (
               <Text style={[styles.bioHint, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
@@ -449,10 +452,12 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 14, fontWeight: "600", marginBottom: 12, marginRight: 8 },
   sectionCard: { borderWidth: 1, ...DesignSystem.shadows.light, overflow: "hidden" },
   bioHint: { fontSize: 12, paddingHorizontal: 18, paddingBottom: 12, lineHeight: 18 },
-  row: { flexDirection: "row", alignItems: "center", padding: 18, borderBottomWidth: 1 },
-  rowRight: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
-  rowText: { fontSize: 16, fontWeight: "500", marginRight: 16 },
-  iconWrap: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  row: { flexDirection: "row", alignItems: "center", minHeight: 76, paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: 1 },
+  rowNoBorder: { borderBottomWidth: 0 },
+  rowAction: { width: 70, minHeight: 44, justifyContent: "center", alignItems: "flex-start", flexShrink: 0 },
+  rowRight: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 12 },
+  rowText: { flex: 1, minWidth: 0, fontSize: 16, lineHeight: 22, fontWeight: "500", textAlign: "right" },
+  iconWrap: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   langRow: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 8, borderTopWidth: 1 },
   langHint: { fontSize: 12, marginTop: 4, lineHeight: 18 },
   langPillsRow: { alignItems: "center" },

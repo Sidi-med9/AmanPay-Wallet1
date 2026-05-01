@@ -13,6 +13,8 @@ export const ReportsScreen = () => {
   const { colors, isDark } = useTheme();
   const { reports } = useWallet();
   const cur = t("common.currency");
+  const sentColor = isDark ? "#F87171" : "#EF4444";
+  const receivedColor = isDark ? "#34D399" : "#10B981";
   const months = useMemo(
     () => [t("reports.m1"), t("reports.m2"), t("reports.m3"), t("reports.m4"), t("reports.m5"), t("reports.m6")],
     [t, i18n.language]
@@ -92,13 +94,13 @@ export const ReportsScreen = () => {
           </Text>
           <View style={styles.chartLegend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+              <View style={[styles.legendDot, { backgroundColor: sentColor }]} />
               <Text style={[styles.legendText, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
                 {t("reports.legendSent")}
               </Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+              <View style={[styles.legendDot, { backgroundColor: receivedColor }]} />
               <Text style={[styles.legendText, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
                 {t("reports.legendReceived")}
               </Text>
@@ -108,8 +110,8 @@ export const ReportsScreen = () => {
           <View style={styles.mockBarChart}>
             {[40, 60, 45, 75, 50, 85].map((h, i) => (
               <View key={i} style={styles.barGroup}>
-                <View style={[styles.bar, { height: h, backgroundColor: colors.primary, borderRadius: 4 }]} />
-                <View style={[styles.bar, { height: h * 0.7, backgroundColor: colors.success, borderRadius: 4 }]} />
+                <View style={[styles.bar, { height: h, backgroundColor: sentColor, borderRadius: 4 }]} />
+                <View style={[styles.bar, { height: h * 0.7, backgroundColor: receivedColor, borderRadius: 4 }]} />
               </View>
             ))}
           </View>
