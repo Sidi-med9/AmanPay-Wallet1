@@ -11,6 +11,7 @@ import { ReceiveScreen } from "../screens/ReceiveScreen";
 import { EnvelopesScreen } from "../screens/EnvelopesScreen";
 import { SuccessScreen } from "../screens/SuccessScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
+import { AiAssistantScreen } from "../screens/AiAssistantScreen";
 import { ONBOARDING_DONE_KEY } from "../constants/storageKeys";
 import { useTheme } from "../context/ThemeContext";
 
@@ -64,6 +65,7 @@ export function RootNavigator() {
               <Stack.Screen name="ReceiveMoney" component={ReceiveScreen} options={{ title: t("receive.title") }} />
               <Stack.Screen name="LocalTransfer" component={LocalTransferScreen} options={{ title: t("transfersLocal.title") }} />
               <Stack.Screen name="Envelopes" component={EnvelopesScreen} options={{ title: t("wallet.envelopes") }} />
+              <Stack.Screen name="AiAssistant" component={AiAssistantScreen} options={{ title: t("assistant.navTitle") }} />
               <Stack.Screen name="Success" component={SuccessScreen} options={{ title: t("success.title"), headerShown: false }} />
             </Stack.Group>
           </>

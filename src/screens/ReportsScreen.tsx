@@ -2,10 +2,11 @@ import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import { useWallet } from "../context/WalletContext";
 import { DesignSystem } from "../constants/DesignSystem";
-import { TrendingUp, TrendingDown, Calendar, ChevronRight, FileDown, ArrowUpRight } from "lucide-react-native";
+import { TrendingUp, TrendingDown, Calendar, ChevronRight, FileDown, ArrowUpRight, Sparkles } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -41,6 +42,7 @@ function sanitizeFilePart(value: string): string {
 
 export const ReportsScreen = () => {
   const { t, i18n } = useTranslation();
+  const navigation = useNavigation<any>();
   const { colors, isDark } = useTheme();
   const { reports, transactions } = useWallet();
   const cur = t("common.currency");
@@ -253,6 +255,15 @@ export const ReportsScreen = () => {
               </Text>
             </View>
           </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("AiAssistant")}
+            style={[styles.aiEntryBtn, { backgroundColor: colors.primary + "14", borderColor: colors.primary }]}
+          >
+            <Sparkles size={16} color={colors.primary} />
+            <Text style={[styles.aiEntryText, { color: colors.primary, fontFamily: DesignSystem.fonts.family }]}>
+              {t("reports.aiEntry")}
+            </Text>
+          </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthsRow}>
             {monthOptions.map((option) => {
               const selected = option.key === selectedMonthKey;
@@ -431,6 +442,18 @@ const styles = StyleSheet.create({
   header: { marginBottom: 24, alignItems: "center" },
   headerTitle: { fontSize: 22, fontWeight: "bold", marginBottom: 16 },
   headerRow: { flexDirection: "row", justifyContent: "center", width: "100%" },
+  aiEntryBtn: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  aiEntryText: { fontSize: 13, fontWeight: "700" },
   datePicker: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, borderWidth: 1, gap: 8 },
   dateText: { fontSize: 14, fontWeight: "600" },
   monthsRow: { gap: 8, marginTop: 10, paddingHorizontal: 2 },

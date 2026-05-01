@@ -61,6 +61,12 @@ export type MerchantCategoryOption = {
   displayName: string;
 };
 
+export type AssistantRecommendation = {
+  summary: string;
+  recommendations: string[];
+  usedModel: boolean;
+};
+
 type WalletDto = {
   id: number;
   totalBalance: string;
@@ -666,4 +672,29 @@ export async function createInternationalTransfer(_payload: unknown) {
       ? { success: true, transactionId: "TRX-MOCK-INTL" }
       : { success: true, transactionId: "TRX-" + Math.floor(Math.random() * 10000) }
   );
+}
+
+export async function getAssistantRecommendation(params: {
+  prompt?: string;
+  language?: string;
+}): Promise<AssistantRecommendation> {
+  if (!isApiConfigured()) {
+    await new Promise((r) => setTimeout(r, 500));
+    return {
+      summary: "Your account is stable this month.",
+      recommendations: [
+        "Use flexible envelope funds for short-term liquidity.",
+        "Keep strict envelope funds for category-only spending.",
+        "Review your top category weekly to avoid overspending.",
+      ],
+      usedModel: false,
+    };
+  }
+  return apiRequest<AssistantRecommendation>("/api/resources/assistant/recommend", {
+    method: "POST",
+    body: {
+      ...(params.prompt?.trim() ? { prompt: params.prompt.trim() } : {}),
+      ...(params.language ? { language: params.language } : {}),
+    },
+  });
 }
