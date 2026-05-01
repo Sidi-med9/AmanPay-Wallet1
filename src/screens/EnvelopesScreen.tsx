@@ -145,40 +145,73 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
           >
             {t("envelopes.modesTitle")}
           </Text>
-          <View style={[styles.modesContainer, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
-            <TouchableOpacity 
+          <Text style={[styles.modesHint, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+            {t("envelopes.modeChooseHint")}
+          </Text>
+          <View style={[styles.modeToggleWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <TouchableOpacity
               style={[
-                styles.modeCard, 
-                { backgroundColor: colors.card, borderColor: envelopeMode === 'strict' ? colors.danger : colors.border, borderRadius: DesignSystem.borderRadius.xl },
-                envelopeMode === 'strict' && { ...DesignSystem.shadows.light, backgroundColor: colors.danger + '05' }
+                styles.modeToggleBtn,
+                envelopeMode === "strict" && { backgroundColor: colors.danger + "18", borderColor: colors.danger },
               ]}
-              onPress={() => setEnvelopeMode('strict')}
+              onPress={() => setEnvelopeMode("strict")}
             >
-              <ShieldAlert color={envelopeMode === 'strict' ? colors.danger : colors.secondaryText} size={24} />
-              <Text style={[styles.modeTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+              <ShieldAlert size={16} color={envelopeMode === "strict" ? colors.danger : colors.secondaryText} />
+              <Text
+                style={[
+                  styles.modeToggleText,
+                  { color: envelopeMode === "strict" ? colors.danger : colors.secondaryText, fontFamily: DesignSystem.fonts.family },
+                ]}
+              >
                 {t("envelopes.strictTitle")}
               </Text>
-              <Text style={[styles.modeDesc, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
-                {t("envelopes.strictDesc")}
-              </Text>
             </TouchableOpacity>
-
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.modeCard, 
-                { backgroundColor: colors.card, borderColor: envelopeMode === 'flexible' ? colors.success : colors.border, borderRadius: DesignSystem.borderRadius.xl },
-                envelopeMode === 'flexible' && { ...DesignSystem.shadows.light, backgroundColor: colors.success + '05' }
+                styles.modeToggleBtn,
+                envelopeMode === "flexible" && { backgroundColor: colors.success + "18", borderColor: colors.success },
               ]}
-              onPress={() => setEnvelopeMode('flexible')}
+              onPress={() => setEnvelopeMode("flexible")}
             >
-              <ShieldCheck color={envelopeMode === 'flexible' ? colors.success : colors.secondaryText} size={24} />
-              <Text style={[styles.modeTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+              <ShieldCheck size={16} color={envelopeMode === "flexible" ? colors.success : colors.secondaryText} />
+              <Text
+                style={[
+                  styles.modeToggleText,
+                  { color: envelopeMode === "flexible" ? colors.success : colors.secondaryText, fontFamily: DesignSystem.fonts.family },
+                ]}
+              >
                 {t("envelopes.flexTitle")}
               </Text>
-              <Text style={[styles.modeDesc, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
-                {t("envelopes.flexDesc")}
-              </Text>
             </TouchableOpacity>
+          </View>
+          <View style={[styles.modeExplainCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modeExplainTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+              {envelopeMode === "strict" ? t("envelopes.strictTitle") : t("envelopes.flexTitle")}
+            </Text>
+            <Text style={[styles.modeExplainDesc, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+              {envelopeMode === "strict" ? t("envelopes.strictDesc") : t("envelopes.flexDesc")}
+            </Text>
+            <View
+              style={[
+                styles.modePill,
+                {
+                  backgroundColor: envelopeMode === "strict" ? colors.danger + "14" : colors.success + "14",
+                  alignSelf: isRtl ? "flex-end" : "flex-start",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.modePillText,
+                  {
+                    color: envelopeMode === "strict" ? colors.danger : colors.success,
+                    fontFamily: DesignSystem.fonts.family,
+                  },
+                ]}
+              >
+                {envelopeMode === "strict" ? t("envelopes.strictRule") : t("envelopes.flexRule")}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.headerRow}>
@@ -261,14 +294,36 @@ const styles = StyleSheet.create({
   remainingBadge: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
   remainingText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, marginTop: 8, textAlign: 'right' },
+  modesHint: { fontSize: 12, marginTop: -6, marginBottom: 12 },
   quickStatsRow: { gap: 12, marginBottom: 20 },
   quickStatCard: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 12 },
   quickStatLabel: { fontSize: 12, marginBottom: 4 },
   quickStatValue: { fontSize: 16, fontWeight: "700" },
-  modesContainer: { gap: 16, marginBottom: 32 },
-  modeCard: { flex: 1, padding: 20, borderWidth: 1, alignItems: 'center' },
-  modeTitle: { fontSize: 15, fontWeight: 'bold', marginTop: 12, marginBottom: 4 },
-  modeDesc: { fontSize: 11, textAlign: 'center' },
+  modeToggleWrap: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 6,
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 10,
+  },
+  modeToggleBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "transparent",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  modeToggleText: { fontSize: 12, fontWeight: "700" },
+  modeExplainCard: { borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 28 },
+  modeExplainTitle: { fontSize: 14, fontWeight: "700", marginBottom: 4 },
+  modeExplainDesc: { fontSize: 12, lineHeight: 18, marginBottom: 8 },
+  modePill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  modePillText: { fontSize: 10, fontWeight: "700" },
   headerRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 },
   categoryCard: { padding: 16, borderWidth: 1, marginBottom: 16 },
   catHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

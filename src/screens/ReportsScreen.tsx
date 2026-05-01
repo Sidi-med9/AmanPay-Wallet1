@@ -117,7 +117,7 @@ export const ReportsScreen = () => {
         .map((tx) => {
           const who = tx.outgoing ? `${tx.sender} → ${tx.receiver}` : `${tx.sender} → ${tx.receiver}`;
           const amount = `${tx.outgoing ? "-" : "+"}${Number(tx.amount || 0).toFixed(2)} ${escapeHtml(tx.currency || cur)}`;
-          const mode = tx.transferMode === "envelope" ? "Envelope" : "Normal";
+          const mode = tx.transferMode === "envelope" ? t("reports.modeEnvelope") : t("reports.modeNormal");
           const date = new Date(tx.date).toLocaleDateString(i18n.language.startsWith("ar") ? "ar-SA" : "en-US");
           return `<tr>
             <td>${escapeHtml(tx.id)}</td>

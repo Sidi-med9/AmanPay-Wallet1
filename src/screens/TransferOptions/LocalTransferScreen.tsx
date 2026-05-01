@@ -422,10 +422,38 @@ export const LocalTransferScreen = ({ navigation }: any) => {
             </View>
           </TouchableOpacity>
 
+          {mode === "envelope" ? (
+            <View
+              style={[
+                styles.envelopeHintCard,
+                { backgroundColor: colors.card, borderColor: colors.border, borderRadius: DesignSystem.borderRadius.xl },
+              ]}
+            >
+              <Text style={[styles.envelopeHintTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+                {t("transfersLocal.envelopeFlowTitle")}
+              </Text>
+              <Text style={[styles.envelopeHintStep, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+                1) {t("transfersLocal.envelopeFlowStep1")}
+              </Text>
+              <Text style={[styles.envelopeHintStep, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+                2) {t("transfersLocal.envelopeFlowStep2")}
+              </Text>
+              <Text style={[styles.envelopeHintStep, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+                3) {t("transfersLocal.envelopeFlowStep3")}
+              </Text>
+            </View>
+          ) : null}
+
         </ScrollView>
         <View style={styles.footer}>
           <PrimaryButton
-            title={resolvingRecipient ? t("transfersLocal.recipientResolving") : t("transfersLocal.next")}
+            title={
+              resolvingRecipient
+                ? t("transfersLocal.recipientResolving")
+                : mode === "envelope"
+                  ? t("transfersLocal.nextEnvelope")
+                  : t("transfersLocal.next")
+            }
             onPress={handleNext}
             disabled={!receiver || !amount || resolvingRecipient}
             style={{ height: 60 }}
@@ -575,4 +603,7 @@ const styles = StyleSheet.create({
   paymentSourceWrap: { marginBottom: 10 },
   paymentSourceRow: { gap: 10 },
   paymentSourceChip: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9 },
+  envelopeHintCard: { marginBottom: 8, borderWidth: 1, padding: 14 },
+  envelopeHintTitle: { fontSize: 14, fontWeight: "700", marginBottom: 8 },
+  envelopeHintStep: { fontSize: 12, lineHeight: 18, marginBottom: 2 },
 });

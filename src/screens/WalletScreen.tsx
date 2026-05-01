@@ -10,7 +10,7 @@ import { DEFAULT_CURRENCY } from "../constants/appDefaults";
 import { useResponsiveLayout } from "../hooks/useResponsiveLayout";
 import { Plus, ArrowUpRight } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { createStrictUnlockRequest, moveFlexibleWalletToMain } from "../services/amanpayApi";
+import { moveFlexibleWalletToMain } from "../services/amanpayApi";
 
 export const WalletScreen = ({ navigation }: any) => {
   const { t, i18n } = useTranslation();
@@ -76,25 +76,6 @@ export const WalletScreen = ({ navigation }: any) => {
       Alert.alert(t("common.success"), t("wallet.flexibleMoved"));
     } catch {
       Alert.alert(t("common.error"), t("wallet.flexibleMoveFailed"));
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleCreateStrictRequest = async () => {
-    if (!selectedEnvelope) return;
-    const amount = Number(selectedEnvelope.strictBalance || 0);
-    if (amount <= 0) {
-      Alert.alert(t("common.error"), t("wallet.noStrictBalance"));
-      return;
-    }
-    try {
-      setActionLoading(true);
-      await createStrictUnlockRequest(selectedEnvelope.categoryId, amount);
-      setSelectedEnvelope(null);
-      Alert.alert(t("common.success"), t("wallet.strictRequestCreated"));
-    } catch {
-      Alert.alert(t("common.error"), t("wallet.strictRequestFailed"));
     } finally {
       setActionLoading(false);
     }
@@ -268,27 +249,18 @@ export const WalletScreen = ({ navigation }: any) => {
             <Text style={[styles.actionSubtitle, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
               {t("wallet.manageWalletSubtitle")}
             </Text>
-            {(Number(selectedEnvelope?.dynamicBalance || 0) > 0 || Number(selectedEnvelope?.strictBalance || 0) > 0) && (
-              <>
-                {Number(selectedEnvelope?.dynamicBalance || 0) > 0 ? (
-                  <TouchableOpacity
-                    disabled={actionLoading}
-                    onPress={handleMoveFlexible}
-                    style={[styles.actionBtn, { backgroundColor: colors.success + "20", borderColor: colors.success }]}
-                  >
-                    <Text style={[styles.actionBtnText, { color: colors.success }]}>{t("wallet.moveFlexibleToMain")}</Text>
-                  </TouchableOpacity>
-                ) : null}
-                {Number(selectedEnvelope?.strictBalance || 0) > 0 ? (
-                  <TouchableOpacity
-                    disabled={actionLoading}
-                    onPress={handleCreateStrictRequest}
-                    style={[styles.actionBtn, { backgroundColor: colors.danger + "18", borderColor: colors.danger }]}
-                  >
-                    <Text style={[styles.actionBtnText, { color: colors.danger }]}>{t("wallet.createStrictRequest")}</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </>
+            {Number(selectedEnvelope?.dynamicBalance || 0) > 0 ? (
+              <TouchableOpacity
+                disabled={actionLoading}
+                onPress={handleMoveFlexible}
+                style={[styles.actionBtn, { backgroundColor: colors.success + "20", borderColor: colors.success }]}
+              >
+                <Text style={[styles.actionBtnText, { color: colors.success }]}>{t("wallet.moveFlexibleToMain")}</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={[styles.actionSubtitle, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
+                {t("wallet.strictWalletLockedHint")}
+              </Text>
             )}
             <TouchableOpacity disabled={actionLoading} onPress={closeActionModal} style={styles.cancelBtn}>
               <Text style={[styles.cancelText, { color: colors.secondaryText }]}>{t("common.cancel")}</Text>

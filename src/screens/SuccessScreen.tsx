@@ -64,7 +64,7 @@ export const SuccessScreen = ({ route, navigation }: any) => {
   const buildReceipt = async (): Promise<string> => {
     if (receiptUri) return receiptUri;
     const txDate = new Date();
-    const transferTypeLabel = type === "local" ? t("success.typeLocal") : t("success.typeIntl");
+    const transferTypeLabel = type === "local" ? t("transfersLocal.title") : t("success.typeIntl");
     const amountValue = `${parseFloat(amount).toFixed(2)} ${DEFAULT_CURRENCY}`;
     const html = `
       <html>
@@ -367,16 +367,6 @@ export const SuccessScreen = ({ route, navigation }: any) => {
             </Text>
           </View>
 
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
-              {type === "local" ? t("success.typeLocal") : t("success.typeIntl")}
-            </Text>
-            <Text style={[styles.detailLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
-              {t("success.type")}
-            </Text>
-          </View>
         </View>
 
         <View style={styles.actionsRow}>
