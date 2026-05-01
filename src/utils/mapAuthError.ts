@@ -15,12 +15,20 @@ export function mapAuthErrorToDialog(err: unknown): AuthDialogContent {
     switch (err.code) {
       case "invalid_credentials":
         return { titleKey: "dialog.errorTitle", messageKey: "auth.invalidCredentials" };
+      case "account_inactive":
+        return { titleKey: "dialog.errorTitle", messageKey: "auth.accountInactive" };
+      case "admin_not_allowed_mobile":
+        return { titleKey: "dialog.errorTitle", messageKey: "auth.adminNotAllowedMobile" };
       case "email_taken":
         return { titleKey: "dialog.errorTitle", messageKey: "auth.emailTaken" };
       case "phone_taken":
         return { titleKey: "dialog.errorTitle", messageKey: "auth.phoneTaken" };
       case "invalid_phone":
         return { titleKey: "dialog.errorTitle", messageKey: "auth.invalidPhone" };
+      case "merchant_category_required":
+        return { titleKey: "dialog.errorTitle", messageKey: "auth.merchantCategoryRequired" };
+      case "merchant_category_invalid":
+        return { titleKey: "dialog.errorTitle", messageKey: "auth.merchantCategoryInvalid" };
       default:
         return {
           titleKey: "dialog.errorTitle",
@@ -36,6 +44,18 @@ export function mapRegisterErrorToDialog(err: unknown): AuthDialogContent {
   if (err instanceof ApiError) {
     if (err.code === "email_taken") {
       return { titleKey: "dialog.errorTitle", messageKey: "auth.emailTaken" };
+    }
+    if (err.code === "account_inactive") {
+      return { titleKey: "dialog.errorTitle", messageKey: "auth.accountInactive" };
+    }
+    if (err.code === "admin_not_allowed_mobile") {
+      return { titleKey: "dialog.errorTitle", messageKey: "auth.adminNotAllowedMobile" };
+    }
+    if (err.code === "merchant_category_required") {
+      return { titleKey: "dialog.errorTitle", messageKey: "auth.merchantCategoryRequired" };
+    }
+    if (err.code === "merchant_category_invalid") {
+      return { titleKey: "dialog.errorTitle", messageKey: "auth.merchantCategoryInvalid" };
     }
     return {
       titleKey: "dialog.errorTitle",

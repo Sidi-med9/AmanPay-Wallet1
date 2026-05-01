@@ -31,7 +31,6 @@ import {
   Edit3,
   X,
   User,
-  Bell,
   Lock,
 } from "lucide-react-native";
 import type { AppLocale } from "../i18n/config";
@@ -230,7 +229,6 @@ export const SettingsScreen = () => {
               label={t("settings.editProfile")}
               onPress={() => setEditModalVisible(true)}
             />
-            <SettingRow icon={<Bell color={colors.primary} size={20} />} label={t("settings.notifications")} />
             <SettingRow
               icon={<Lock color={colors.primary} size={20} />}
               label={t("settings.transferAuthBiometric")}

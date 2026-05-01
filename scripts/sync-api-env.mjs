@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Writes ./.env with EXPO_PUBLIC_API_URL before Expo starts (npm hooks).
- * Port: API_PORT from ../elmorad-api/.env, else docker-compose default (5000).
+ * Port: API_PORT from ../elmorad-api/.env, else docker-compose default (3000).
  * Host: LAN (npm start), 10.0.2.2 (npm run android), 127.0.0.1 (npm run ios).
  */
 import fs from "fs";
@@ -38,14 +38,14 @@ function readEnvFileKey(filePath, key) {
 }
 
 function readComposeDefaultApiPort() {
-  if (!fs.existsSync(DOCKER_COMPOSE)) return 5000;
+  if (!fs.existsSync(DOCKER_COMPOSE)) return 3000;
   const text = fs.readFileSync(DOCKER_COMPOSE, "utf8");
-  const m = text.match(/\$\{API_PORT:-(\d+)\}\s*:\s*5000/);
+  const m = text.match(/\$\{API_PORT:-(\d+)\}\s*:\s*3000/);
   if (m) {
     const n = parseInt(m[1], 10);
     if (!Number.isNaN(n) && n > 0) return n;
   }
-  return 5000;
+  return 3000;
 }
 
 function readPublishedApiPort() {

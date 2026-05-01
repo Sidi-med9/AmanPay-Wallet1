@@ -22,7 +22,8 @@ import { TRANSFER_AUTH_MODE_KEY } from "../../constants/storageKeys";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { Wallet, Folder, User, Banknote } from "lucide-react-native";
 import { ThemedMessageDialog } from "../../components/ThemedMessageDialog";
-import { lookupTransferRecipient, type RecipientLookup, verifyTransferPassword } from "../../services/amanpayApi";
+import { getMyCategoryWallets, lookupTransferRecipient, type RecipientLookup, verifyTransferPassword } from "../../services/amanpayApi";
+import { LinearGradient } from "expo-linear-gradient";
 
 type LocalAuthModule = {
   hasHardwareAsync: () => Promise<boolean>;
@@ -62,6 +63,24 @@ export const LocalTransferScreen = ({ navigation }: any) => {
   const [resolvedRecipientName, setResolvedRecipientName] = useState<string | null>(null);
   const [resolvedRecipient, setResolvedRecipient] = useState<RecipientLookup | null>(null);
   const [resolvingRecipient, setResolvingRecipient] = useState(false);
+  const [paymentSource, setPaymentSource] = useState<"main" | "category_wallet">("main");
+  const [merchantCategoryWalletOption, setMerchantCategoryWalletOption] = useState<{
+    available: boolean;
+    categoryId: string;
+    categoryLabel: string;
+    totalAmount: number;
+  } | null>(null);
+  const availableMainBalance = Number(dashboard?.mainBalance ?? dashboard?.balance ?? 0);
+
+  const mapMerchantCategoryCodeToWalletCategory = (code?: string | null): { id: string; label: string } | null => {
+    const normalized = (code ?? "").trim().toUpperCase();
+    if (normalized === "AL" || normalized === "ALL") return { id: "general", label: t("auth.merchantCategoryAll") };
+    if (normalized === "FO") return { id: "food", label: t("envelopes.categoryFood") };
+    if (normalized === "TR") return { id: "transportation", label: t("envelopes.categoryTransportation") };
+    if (normalized === "PC") return { id: "personal_care", label: t("envelopes.categoryPersonalCare") };
+    if (normalized === "HO") return { id: "household", label: t("envelopes.categoryHousehold") };
+    return null;
+  };
 
   useEffect(() => {
     (async () => {
@@ -98,6 +117,7 @@ export const LocalTransferScreen = ({ navigation }: any) => {
         amount,
         type: "local",
         transferMode: "normal",
+        paymentSource,
       });
     }
   };
@@ -150,7 +170,7 @@ export const LocalTransferScreen = ({ navigation }: any) => {
 
   const handleNext = async () => {
     const amountNum = Number.parseFloat(amount);
-    const available = Number(dashboard?.balance ?? 0);
+    const available = Number(dashboard?.mainBalance ?? dashboard?.balance ?? 0);
     if (!receiver.trim() || !amount.trim()) {
       setDialog({ title: t("dialog.errorTitle"), message: t("transfersLocal.fillReceiverAmount") });
       return;
@@ -176,6 +196,34 @@ export const LocalTransferScreen = ({ navigation }: any) => {
       setDialog({ title: t("dialog.errorTitle"), message: t("transfersLocal.recipientSelf") });
       return;
     }
+    if (mode === "envelope" && (lookup.role ?? "").toLowerCase() === "merchant") {
+      setDialog({ title: t("dialog.errorTitle"), message: t("transfersLocal.recipientMerchantEnvelopeBlocked") });
+      return;
+    }
+    let nextMerchantOption: {
+      available: boolean;
+      categoryId: string;
+      categoryLabel: string;
+      totalAmount: number;
+    } | null = null;
+    if (mode === "normal" && (lookup.role ?? "").toLowerCase() === "merchant") {
+      const merchantWalletCategory = mapMerchantCategoryCodeToWalletCategory(lookup.merchantCategory);
+      if (merchantWalletCategory) {
+        const rows = await getMyCategoryWallets();
+        const row = rows.find((r) => r.category === merchantWalletCategory.id);
+        const totalWalletAmount = (Number.parseFloat(row?.dynamicBalance ?? "0") || 0) + (Number.parseFloat(row?.strictBalance ?? "0") || 0);
+        if (totalWalletAmount >= amountNum) {
+          nextMerchantOption = {
+            available: true,
+            categoryId: merchantWalletCategory.id,
+            categoryLabel: merchantWalletCategory.label,
+            totalAmount: totalWalletAmount,
+          };
+        }
+      }
+    }
+    setMerchantCategoryWalletOption(nextMerchantOption);
+    setPaymentSource("main");
     setResolvedRecipient(lookup);
     setResolvedRecipientName(lookup.fullName || lookup.email);
     setConfirmVisible(true);
@@ -199,6 +247,28 @@ export const LocalTransferScreen = ({ navigation }: any) => {
             </Text>
           </View>
 
+          <LinearGradient
+            colors={isDark ? ["#0B1F1A", "#132A24"] : ["#ECFDF5", "#F7FEF9"]}
+            style={[styles.balanceInfoCard, { borderRadius: DesignSystem.borderRadius.xl }]}
+          >
+            <Text
+              style={[
+                styles.balanceInfoLabel,
+                { fontFamily: DesignSystem.fonts.family, color: isDark ? "rgba(236,254,255,0.75)" : "#334155" },
+              ]}
+            >
+              {t("wallet.regularBalance")}
+            </Text>
+            <Text
+              style={[
+                styles.balanceInfoValue,
+                { fontFamily: DesignSystem.fonts.family, color: isDark ? "#ECFEFF" : "#0F172A" },
+              ]}
+            >
+              {availableMainBalance.toLocaleString()} {DEFAULT_CURRENCY}
+            </Text>
+          </LinearGradient>
+
           <View style={styles.inputSection}>
             <Text style={[styles.label, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}>
               {t("transfersLocal.receiver")}
@@ -214,7 +284,9 @@ export const LocalTransferScreen = ({ navigation }: any) => {
                 },
               ]}
             >
-              <User size={20} color={colors.primary} />
+              <View style={[styles.inputIconWrap, { backgroundColor: colors.primary + "12" }]}>
+                <User size={18} color={colors.primary} />
+              </View>
               <TextInput
                 style={[styles.input, { color: colors.text, fontFamily: DesignSystem.fonts.family, textAlign }]}
                 placeholder={t("transfersLocal.receiverPh")}
@@ -254,6 +326,13 @@ export const LocalTransferScreen = ({ navigation }: any) => {
                 >
                   {resolvedRecipient.referenceId} • {resolvedRecipient.phone || resolvedRecipient.email}
                 </Text>
+                {resolvedRecipient.merchantCategory ? (
+                  <Text
+                    style={[styles.recipientMeta, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}
+                  >
+                    {t("transfersLocal.recipientCategory")}: {resolvedRecipient.merchantCategory}
+                  </Text>
+                ) : null}
               </View>
             ) : null}
           </View>
@@ -273,7 +352,9 @@ export const LocalTransferScreen = ({ navigation }: any) => {
                 },
               ]}
             >
-              <Banknote size={20} color={colors.primary} />
+              <View style={[styles.inputIconWrap, { backgroundColor: colors.primary + "12" }]}>
+                <Banknote size={18} color={colors.primary} />
+              </View>
               <TextInput
                 style={[styles.input, { color: colors.text, fontFamily: DesignSystem.fonts.family, textAlign }]}
                 placeholder="0.00"
@@ -344,9 +425,9 @@ export const LocalTransferScreen = ({ navigation }: any) => {
         </ScrollView>
         <View style={styles.footer}>
           <PrimaryButton
-            title={t("transfersLocal.next")}
+            title={resolvingRecipient ? t("transfersLocal.recipientResolving") : t("transfersLocal.next")}
             onPress={handleNext}
-            disabled={!receiver || !amount}
+            disabled={!receiver || !amount || resolvingRecipient}
             style={{ height: 60 }}
           />
         </View>
@@ -369,6 +450,47 @@ export const LocalTransferScreen = ({ navigation }: any) => {
               <Text style={[styles.modalDesc, { color: colors.text, fontFamily: DesignSystem.fonts.family, textAlign }]}>
                 {t("transfersLocal.recipientName")}: {resolvedRecipientName}
               </Text>
+            ) : null}
+            {merchantCategoryWalletOption?.available ? (
+              <View style={styles.paymentSourceWrap}>
+                <Text style={[styles.modalDesc, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign }]}>
+                  {t("transfersLocal.merchantPaymentSourceTitle")}
+                </Text>
+                <View style={[styles.paymentSourceRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
+                  <TouchableOpacity
+                    onPress={() => setPaymentSource("main")}
+                    style={[
+                      styles.paymentSourceChip,
+                      {
+                        borderColor: paymentSource === "main" ? colors.primary : colors.border,
+                        backgroundColor: paymentSource === "main" ? colors.primary + "14" : colors.background,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: paymentSource === "main" ? colors.primary : colors.text }}>
+                      {t("transfersLocal.payWithMainWallet")}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setPaymentSource("category_wallet")}
+                    style={[
+                      styles.paymentSourceChip,
+                      {
+                        borderColor: paymentSource === "category_wallet" ? colors.primary : colors.border,
+                        backgroundColor: paymentSource === "category_wallet" ? colors.primary + "14" : colors.background,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: paymentSource === "category_wallet" ? colors.primary : colors.text }}>
+                      {t("transfersLocal.payWithCategoryWallet", {
+                        category: merchantCategoryWalletOption.categoryLabel,
+                        amount: merchantCategoryWalletOption.totalAmount.toLocaleString(),
+                        currency: DEFAULT_CURRENCY,
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             ) : null}
 
             {authMode === "biometric" ? (
@@ -422,9 +544,13 @@ const styles = StyleSheet.create({
   container: { padding: 24, paddingBottom: 100 },
   header: { alignItems: 'center', marginBottom: 32 },
   title: { fontSize: 20, fontWeight: 'bold' },
+  balanceInfoCard: { paddingVertical: 14, paddingHorizontal: 16, marginBottom: 20 },
+  balanceInfoLabel: { fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 4 },
+  balanceInfoValue: { fontSize: 22, color: "#FFF", fontWeight: "700" },
   inputSection: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: "600", marginBottom: 8 },
   inputWrapper: { alignItems: "center", height: 60, borderWidth: 1, paddingHorizontal: 16, gap: 12 },
+  inputIconWrap: { width: 34, height: 34, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   input: { flex: 1, height: '100%', fontSize: 16 },
   sectionTitle: { fontSize: 16, fontWeight: "bold", marginTop: 24, marginBottom: 16 },
   modeCard: { alignItems: "center", padding: 20, borderWidth: 1, marginBottom: 16 },
@@ -446,4 +572,7 @@ const styles = StyleSheet.create({
   recipientBadge: { fontSize: 12, fontWeight: "700" },
   recipientName: { fontSize: 16, fontWeight: "700" },
   recipientMeta: { marginTop: 2, fontSize: 12 },
+  paymentSourceWrap: { marginBottom: 10 },
+  paymentSourceRow: { gap: 10 },
+  paymentSourceChip: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 9 },
 });

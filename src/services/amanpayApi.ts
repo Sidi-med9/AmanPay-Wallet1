@@ -8,7 +8,7 @@ import {
 } from "../data/mockData";
 import { isApiConfigured } from "../config/api";
 import { DEFAULT_CURRENCY } from "../constants/appDefaults";
-import { apiRequest, getApiUserId } from "./apiClient";
+import { ApiError, apiRequest, getApiUserId } from "./apiClient";
 import { normalizeTrxStatus } from "../utils/trxStatus";
 
 export type AppUser = {
@@ -18,6 +18,9 @@ export type AppUser = {
   name: string;
   email: string;
   phone: string;
+  role?: string;
+  status?: string;
+  merchantCategory?: string | null;
   avatar: string;
   language: string;
   theme: string;
@@ -37,6 +40,8 @@ type PublicUserDto = {
   fullName: string;
   phone: string | null;
   role: string;
+  status?: string;
+  merchantCategory?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -47,6 +52,13 @@ export type RecipientLookup = {
   email: string;
   phone: string | null;
   referenceId: string;
+  role?: string;
+  merchantCategory?: string | null;
+};
+
+export type MerchantCategoryOption = {
+  code: string;
+  displayName: string;
 };
 
 type WalletDto = {
@@ -54,6 +66,19 @@ type WalletDto = {
   totalBalance: string;
   currency: string;
   user?: { id: number; email: string; fullName: string };
+};
+
+type CategoryWalletDto = {
+  id: number;
+  category: string;
+  strictBalance: string;
+  dynamicBalance: string;
+  currency: string;
+};
+
+type CategoryWalletActionResult = {
+  movedAmount?: string;
+  spentAmount?: string;
 };
 
 type TransferDto = {
@@ -64,6 +89,7 @@ type TransferDto = {
   status: string;
   sender?: { id: number; email: string; fullName: string };
   receiver?: { id: number; email: string; fullName: string };
+  envelopes?: Array<{ id: number; type: string; amount: string; status: string; mode?: string }>;
 };
 
 type PartnerDto = {
@@ -88,6 +114,9 @@ function mapPublicUserToAppUser(u: PublicUserDto): AppUser {
     name: u.fullName,
     email: u.email,
     phone: u.phone ?? "",
+    role: u.role,
+    status: u.status,
+    merchantCategory: u.merchantCategory ?? null,
     avatar: "",
     language: "ar",
     theme: "dark",
@@ -113,24 +142,33 @@ function emptyDashboard() {
   return {
     appName: "AmanPay",
     balance: 0,
+    mainBalance: 0,
     currency: DEFAULT_CURRENCY,
     activeEnvelopes: 0,
     pendingApprovals: 0,
-    envelopes: [] as { categoryId: string; balance: number; mode: string }[],
+    envelopes: [] as { categoryId: string; balance: number; strictBalance: number; dynamicBalance: number }[],
   };
 }
 
-function mapWalletToDashboard(wallet: WalletDto) {
-  const balance = Number.parseFloat(wallet.totalBalance) || 0;
-  const envelopes = mockCategories.slice(0, 5).map((c) => ({
-    categoryId: c.id,
-    balance: 0,
-    mode: "flexible" as const,
-  }));
+function mapWalletToDashboard(wallet: WalletDto, categoryWallets: CategoryWalletDto[]) {
+  const mainBalance = Number.parseFloat(wallet.totalBalance) || 0;
+  const envelopes = categoryWallets
+    .filter((row) => row.category !== "general")
+    .map((row) => {
+    const strict = Number.parseFloat(row.strictBalance) || 0;
+    const dynamic = Number.parseFloat(row.dynamicBalance) || 0;
+    return {
+      categoryId: row.category,
+      strictBalance: strict,
+      dynamicBalance: dynamic,
+      balance: strict + dynamic,
+    };
+  });
   return {
     appName: "AmanPay",
-    balance,
-    currency: wallet.currency || DEFAULT_CURRENCY,
+    balance: mainBalance,
+    mainBalance,
+    currency: DEFAULT_CURRENCY,
     activeEnvelopes: envelopes.length,
     pendingApprovals: 0,
     envelopes,
@@ -144,7 +182,9 @@ function mapTransferToUi(t: TransferDto, myId: string) {
   const peer = outgoing ? t.receiver : t.sender;
   const peerLabel = peer?.fullName || peer?.email || (outgoing ? rid : sid) || "—";
   const typeLower = (t.type || "").toLowerCase();
+  const isEnvelope = typeLower === "envelope";
   const isIntl = typeLower.includes("international") || typeLower.includes("intl");
+  const envelopeTypes = (t.envelopes ?? []).map((e) => prettifyType(e.type)).slice(0, 3);
   return {
     id: `TRX-${t.id}`,
     type: isIntl ? "international" : "local",
@@ -154,7 +194,8 @@ function mapTransferToUi(t: TransferDto, myId: string) {
     currency: DEFAULT_CURRENCY,
     date: t.occurredAt,
     status: normalizeTrxStatus(t.status),
-    transferMode: "normal",
+    transferMode: isEnvelope ? "envelope" : "normal",
+    envelopeSummary: envelopeTypes.length ? envelopeTypes.join(", ") : null,
     outgoing,
   };
 }
@@ -237,6 +278,9 @@ export async function login(credentials: { identifier: string; password: string 
     "/api/auth/login",
     { method: "POST", body: { identifier: credentials.identifier.trim(), password: credentials.password } }
   );
+  if ((json.user.role || "").toLowerCase() === "admin") {
+    throw new ApiError(403, "Admin accounts are not allowed in the mobile app.", "admin_not_allowed_mobile");
+  }
   return {
     user: mapPublicUserToAppUser(json.user),
     accessToken: json.accessToken,
@@ -249,6 +293,8 @@ export async function register(data: {
   email: string;
   phone?: string;
   password: string;
+  accountType?: "user" | "merchant";
+  merchantCategory?: string;
 }): Promise<AuthResult> {
   if (!isApiConfigured()) {
     await new Promise((r) => setTimeout(r, 600));
@@ -262,6 +308,10 @@ export async function register(data: {
         email: data.email,
         password: data.password,
         fullName: data.name,
+        accountType: data.accountType ?? "user",
+        ...(data.accountType === "merchant" && data.merchantCategory
+          ? { merchantCategory: data.merchantCategory.toUpperCase() }
+          : {}),
         ...(data.phone?.trim() ? { phone: data.phone.trim() } : {}),
       },
     }
@@ -273,6 +323,29 @@ export async function register(data: {
     accessToken: json.accessToken,
     refreshToken: json.refreshToken,
   };
+}
+
+export async function getMerchantCategories(): Promise<MerchantCategoryOption[]> {
+  if (!isApiConfigured()) {
+    return [
+      { code: "AL", displayName: "All Categories" },
+      { code: "FO", displayName: "Food" },
+      { code: "TR", displayName: "Transportation" },
+      { code: "PC", displayName: "Personal Care" },
+      { code: "HO", displayName: "Household" },
+    ];
+  }
+  try {
+    return await apiRequest<MerchantCategoryOption[]>("/api/auth/merchant-categories");
+  } catch {
+    return [
+      { code: "AL", displayName: "All Categories" },
+      { code: "FO", displayName: "Food" },
+      { code: "TR", displayName: "Transportation" },
+      { code: "PC", displayName: "Personal Care" },
+      { code: "HO", displayName: "Household" },
+    ];
+  }
 }
 
 export async function logoutRemote(refreshToken: string): Promise<void> {
@@ -308,7 +381,8 @@ export async function getDashboardData() {
   try {
     const wallet = await ensureWalletForCurrentUser();
     if (!wallet) return emptyDashboard();
-    return mapWalletToDashboard(wallet);
+    const categoryWallets = await apiRequest<CategoryWalletDto[]>("/api/resources/category-wallets/me");
+    return mapWalletToDashboard(wallet, categoryWallets);
   } catch {
     return emptyDashboard();
   }
@@ -327,7 +401,14 @@ export async function getTransactions() {
         (t.sender?.id != null && String(t.sender.id) === uid) ||
         (t.receiver?.id != null && String(t.receiver.id) === uid)
     );
-    return mine.map((t) => mapTransferToUi(t, uid));
+    const sorted = [...mine].sort((a, b) => {
+      const ta = new Date(a.occurredAt).getTime();
+      const tb = new Date(b.occurredAt).getTime();
+      const va = Number.isNaN(ta) ? 0 : ta;
+      const vb = Number.isNaN(tb) ? 0 : tb;
+      return vb - va;
+    });
+    return sorted.map((t) => mapTransferToUi(t, uid));
   } catch {
     return [];
   }
@@ -340,26 +421,24 @@ export async function getCategories() {
   const uid = getApiUserId();
   if (!uid) return mockCategories;
   try {
-    const rows = await apiRequest<EnvelopeDto[]>("/api/resources/envelopes");
-    const byType = new Map<string, { count: number; sum: number }>();
-    for (const row of rows) {
-      const key = row.type?.trim() || "general";
-      const amount = Number.parseFloat(row.amount) || 0;
-      const prev = byType.get(key) ?? { count: 0, sum: 0 };
-      prev.count += 1;
-      prev.sum += amount;
-      byType.set(key, prev);
-    }
-    if (!byType.size) return mockCategories;
-    return Array.from(byType.entries()).map(([type, meta], idx) => ({
-      id: `api-${idx + 1}`,
-      name: prettifyType(type),
+    const rows = await apiRequest<CategoryWalletDto[]>("/api/resources/category-wallets/me");
+    if (!rows.length) return mockCategories;
+    return rows
+      .filter((row) => row.category !== "general")
+      .map((row) => {
+      const strict = Number.parseFloat(row.strictBalance) || 0;
+      const dynamic = Number.parseFloat(row.dynamicBalance) || 0;
+      const sum = strict + dynamic;
+      return {
+      id: row.category,
+      name: prettifyType(row.category),
       icon: "layout-grid",
-      color: colorForType(type),
-      description: `${meta.count} item${meta.count > 1 ? "s" : ""}`,
-      amount: meta.sum,
+      color: colorForType(row.category),
+      description: "",
+      amount: sum,
       source: "api",
-    }));
+      };
+    });
   } catch {
     return mockCategories;
   }
@@ -401,16 +480,62 @@ export async function getReports() {
   }
 }
 
+export async function moveFlexibleWalletToMain(categoryId: string, amount: number): Promise<CategoryWalletActionResult> {
+  if (!isApiConfigured()) {
+    await new Promise((r) => setTimeout(r, 500));
+    return { movedAmount: amount.toFixed(2) };
+  }
+  return apiRequest<CategoryWalletActionResult>("/api/resources/category-wallets/move-dynamic-to-main", {
+    method: "POST",
+    body: { category: categoryId, amount: amount.toFixed(2) },
+  });
+}
+
+export async function getMyCategoryWallets(): Promise<CategoryWalletDto[]> {
+  if (!isApiConfigured()) {
+    return [];
+  }
+  try {
+    return await apiRequest<CategoryWalletDto[]>("/api/resources/category-wallets/me");
+  } catch {
+    return [];
+  }
+}
+
+export async function createStrictUnlockRequest(categoryId: string, amount: number): Promise<void> {
+  const uid = getApiUserId();
+  if (!uid) throw new Error("Unauthorized");
+  const userId = Number.parseInt(uid, 10);
+  if (!isApiConfigured()) {
+    await new Promise((r) => setTimeout(r, 500));
+    return;
+  }
+  await apiRequest("/api/resources/money-requests", {
+    method: "POST",
+    body: {
+      userId,
+      amount: amount.toFixed(2),
+      category: categoryId,
+      status: "pending_unlock",
+      requestedAt: new Date().toISOString(),
+    },
+  });
+}
+
 /**
  * Persists a transfer on the server when the recipient is a numeric user id.
  * Otherwise returns ok: false (UI still shows success with a local id).
  */
 export async function recordTransferFromSuccess(params: {
   type: string;
+  transferMode?: "normal" | "envelope";
+  envelopeMode?: "strict" | "flexible";
+  envelopes?: Array<{ categoryId: string; amount: string }>;
   receiver: string;
   amount: string;
   receiverDbUserId?: number | null;
   intermediaryId?: string | null;
+  paymentSource?: "main" | "category_wallet";
 }): Promise<{ id: string; recorded: boolean; receiverName?: string; errorMessage?: string }> {
   if (!isApiConfigured()) {
     return { id: "AMN-" + Math.floor(Math.random() * 1_000_000), recorded: false };
@@ -445,9 +570,31 @@ export async function recordTransferFromSuccess(params: {
   if (Number.isNaN(amountNum) || amountNum <= 0) {
     return { id: "AMN-" + Math.floor(Math.random() * 1_000_000), recorded: false, errorMessage: "Invalid amount." };
   }
-  const typeTag = params.type === "international" ? "international" : "local";
+  const typeTag = params.transferMode === "envelope" ? "envelope" : "local";
   try {
-    const endpoint = typeTag === "local" ? "/api/resources/transfers/simple" : "/api/resources/transfers";
+    if (params.paymentSource === "category_wallet") {
+      if (!receiverId) {
+        throw new Error("merchant_not_found");
+      }
+      const merchantPayment = await apiRequest<{
+        transfer: TransferDto;
+        spentAmount: string;
+        category: string;
+        remainingCategoryBalance: string;
+      }>("/api/resources/category-wallets/pay-merchant", {
+        method: "POST",
+        body: {
+          merchantId: receiverId,
+          amount: amountNum.toFixed(2),
+        },
+      });
+      return {
+        id: `TRX-${merchantPayment.transfer.id}`,
+        recorded: true,
+        receiverName: merchantPayment.transfer.receiver?.fullName || params.receiver,
+      };
+    }
+    const endpoint = typeTag === "envelope" ? "/api/resources/transfers/envelope" : "/api/resources/transfers/simple";
     const created = await apiRequest<TransferDto>(endpoint, {
       method: "POST",
       body: {
@@ -456,7 +603,16 @@ export async function recordTransferFromSuccess(params: {
         occurredAt: new Date().toISOString(),
         type: typeTag,
         status: "completed",
-        ...(typeTag !== "local" ? { senderId } : {}),
+        ...(typeTag === "envelope"
+          ? {
+              envelopeMode: params.envelopeMode === "strict" ? "strict" : "dynamic",
+              envelopes: (params.envelopes ?? []).map((e) => ({
+                type: e.categoryId,
+                amount: e.amount,
+                mode: params.envelopeMode === "strict" ? "strict" : "dynamic",
+              })),
+            }
+          : {}),
       },
     });
     return {

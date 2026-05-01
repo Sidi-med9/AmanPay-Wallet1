@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Modal, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext";
@@ -8,19 +8,19 @@ import { useAuth } from "../context/AuthContext";
 import { DesignSystem } from "../constants/DesignSystem";
 import { DEFAULT_CURRENCY } from "../constants/appDefaults";
 import { useResponsiveLayout } from "../hooks/useResponsiveLayout";
-import { Plus, ChevronRight, ChevronLeft, ArrowUpRight } from "lucide-react-native";
-import { CreateCategoryModal } from "../components/CreateCategoryModal";
+import { Plus, ArrowUpRight } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { createStrictUnlockRequest, moveFlexibleWalletToMain } from "../services/amanpayApi";
 
 export const WalletScreen = ({ navigation }: any) => {
   const { t, i18n } = useTranslation();
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
-  const { dashboard, categories } = useWallet();
-  const [modalVisible, setModalVisible] = useState(false);
+  const { dashboard, categories, refreshData } = useWallet();
+  const [selectedEnvelope, setSelectedEnvelope] = useState<any | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
   const { horizontalPadding, centeredInner, insets } = useResponsiveLayout();
   const isRtl = i18n.dir() === "rtl";
-  const BackChevron = isRtl ? ChevronLeft : ChevronRight;
 
   const currency = dashboard?.currency ?? DEFAULT_CURRENCY;
 
@@ -28,7 +28,77 @@ export const WalletScreen = ({ navigation }: any) => {
 
   const envelopes = dashboard.envelopes || [];
   const totalEnvelopeBalance = envelopes.reduce((acc: number, curr: any) => acc + (curr.balance || 0), 0);
-  const regularBalance = dashboard.balance - totalEnvelopeBalance;
+  const mainBalance = Number(dashboard.mainBalance ?? dashboard.balance ?? 0);
+  const regularBalance = mainBalance;
+
+  const closeActionModal = () => {
+    if (actionLoading) return;
+    setSelectedEnvelope(null);
+  };
+
+  const getWalletBalances = (env: any) => {
+    const dynamicAmount = Number(env?.dynamicBalance || 0);
+    const strictAmount = Number(env?.strictBalance || 0);
+    return {
+      dynamicAmount,
+      strictAmount,
+      isEmpty: dynamicAmount <= 0 && strictAmount <= 0,
+    };
+  };
+
+  const getCategoryMeta = (categoryId: string) => {
+    switch (categoryId) {
+      case "food":
+        return { label: t("envelopes.categoryFood"), icon: "🍽️" };
+      case "transportation":
+        return { label: t("envelopes.categoryTransportation"), icon: "🚌" };
+      case "personal_care":
+        return { label: t("envelopes.categoryPersonalCare"), icon: "💗" };
+      case "household":
+        return { label: t("envelopes.categoryHousehold"), icon: "🏠" };
+      default:
+        return { label: categoryId, icon: "🏷️" };
+    }
+  };
+
+  const handleMoveFlexible = async () => {
+    if (!selectedEnvelope) return;
+    const amount = Number(selectedEnvelope.dynamicBalance || 0);
+    if (amount <= 0) {
+      Alert.alert(t("common.error"), t("wallet.noFlexibleBalance"));
+      return;
+    }
+    try {
+      setActionLoading(true);
+      await moveFlexibleWalletToMain(selectedEnvelope.categoryId, amount);
+      await refreshData();
+      setSelectedEnvelope(null);
+      Alert.alert(t("common.success"), t("wallet.flexibleMoved"));
+    } catch {
+      Alert.alert(t("common.error"), t("wallet.flexibleMoveFailed"));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCreateStrictRequest = async () => {
+    if (!selectedEnvelope) return;
+    const amount = Number(selectedEnvelope.strictBalance || 0);
+    if (amount <= 0) {
+      Alert.alert(t("common.error"), t("wallet.noStrictBalance"));
+      return;
+    }
+    try {
+      setActionLoading(true);
+      await createStrictUnlockRequest(selectedEnvelope.categoryId, amount);
+      setSelectedEnvelope(null);
+      Alert.alert(t("common.success"), t("wallet.strictRequestCreated"));
+    } catch {
+      Alert.alert(t("common.error"), t("wallet.strictRequestFailed"));
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -45,9 +115,7 @@ export const WalletScreen = ({ navigation }: any) => {
       >
         <View style={[centeredInner, { alignSelf: "center" }]}>
           <View style={[styles.header, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <BackChevron color={colors.text} size={24} />
-            </TouchableOpacity>
+            <View style={styles.backBtnPlaceholder} />
             <Text style={[styles.headerTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
               {t("wallet.headerTitle")}
             </Text>
@@ -63,7 +131,7 @@ export const WalletScreen = ({ navigation }: any) => {
             </Text>
             <View style={styles.balanceRow}>
               <Text style={[styles.mainBalance, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
-                {dashboard.balance.toLocaleString()} {currency}
+                {mainBalance.toLocaleString()} {currency}
               </Text>
               <View style={styles.trendContainer}>
                 <ArrowUpRight color={colors.success} size={16} />
@@ -128,12 +196,6 @@ export const WalletScreen = ({ navigation }: any) => {
             <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
               {t("wallet.envelopes")}
             </Text>
-            <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addEnvelopeBtn}>
-              <Plus color={colors.primary} size={18} />
-              <Text style={[styles.addEnvelopeText, { color: colors.primary, fontFamily: DesignSystem.fonts.family }]}>
-                {t("wallet.new")}
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {envelopes.length === 0 ? (
@@ -145,31 +207,20 @@ export const WalletScreen = ({ navigation }: any) => {
           ) : (
             envelopes.map((env: any, index: number) => {
               const cat = categories.find((c) => c.id === env.categoryId);
-              if (!cat) return null;
+              const categoryMeta = getCategoryMeta(env.categoryId);
 
               return (
-                <View key={index} style={[styles.envItem, { backgroundColor: isDark ? "#0C182B" : "#FFF", borderColor: colors.border }]}>
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => {
+                    const state = getWalletBalances(env);
+                    if (state.isEmpty) return;
+                    setSelectedEnvelope(env);
+                  }}
+                  style={[styles.envItem, { backgroundColor: isDark ? "#0C182B" : "#FFF", borderColor: colors.border }]}
+                  disabled={getWalletBalances(env).isEmpty}
+                >
                   <View style={[styles.envTop, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
-                    <View
-                      style={[
-                        styles.badge,
-                        {
-                          backgroundColor: env.mode === "strict" ? colors.danger + "22" : colors.success + "22",
-                          position: "relative",
-                          top: 0,
-                          left: 0,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.badgeText,
-                          { color: env.mode === "strict" ? colors.danger : colors.success },
-                        ]}
-                      >
-                        {env.mode === "strict" ? t("wallet.strict") : t("wallet.flexible")}
-                      </Text>
-                    </View>
                     <Text
                       style={[
                         styles.envSub,
@@ -180,28 +231,71 @@ export const WalletScreen = ({ navigation }: any) => {
                         },
                       ]}
                     >
-                      {cat.description || ""}
+                      {cat.description || (getWalletBalances(env).isEmpty ? t("wallet.emptyWallet") : t("wallet.tapToManage"))}
                     </Text>
                   </View>
                   <View style={[styles.envMain, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
                     <View style={[styles.envTextCol, { alignItems: isRtl ? "flex-end" : "flex-start" }]}>
-                      <Text style={[styles.envName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{cat.name}</Text>
+                      <Text style={[styles.envName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{categoryMeta.label}</Text>
                       <Text style={[styles.envAmount, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
                         {env.balance.toLocaleString()} {currency}
                       </Text>
+                      <Text style={[styles.envAmount, { color: colors.success, fontFamily: DesignSystem.fonts.family }]}>
+                        {t("wallet.flexibleLabel")}: {(env.dynamicBalance || 0).toLocaleString()} {currency}
+                      </Text>
+                      <Text style={[styles.envAmount, { color: colors.danger, fontFamily: DesignSystem.fonts.family }]}>
+                        {t("wallet.strictLabel")}: {(env.strictBalance || 0).toLocaleString()} {currency}
+                      </Text>
                     </View>
-                    <View style={[styles.envIconWrap, { backgroundColor: (cat.color || colors.primary) + "15" }]}>
-                      <Text style={{ color: cat.color || colors.primary, fontSize: 18 }}>{cat.name.charAt(0)}</Text>
+                    <View style={[styles.envIconWrap, { backgroundColor: (cat?.color || colors.primary) + "25" }]}>
+                      <Text style={styles.categoryEmoji}>{categoryMeta.icon}</Text>
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
         </View>
       </ScrollView>
 
-      <CreateCategoryModal visible={modalVisible} onClose={() => setModalVisible(false)} />
+      <Modal visible={!!selectedEnvelope} transparent animationType="fade" onRequestClose={closeActionModal}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeActionModal} />
+          <View style={[styles.actionSheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.actionTitle, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+              {t("wallet.manageWallet")}
+            </Text>
+            <Text style={[styles.actionSubtitle, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
+              {t("wallet.manageWalletSubtitle")}
+            </Text>
+            {(Number(selectedEnvelope?.dynamicBalance || 0) > 0 || Number(selectedEnvelope?.strictBalance || 0) > 0) && (
+              <>
+                {Number(selectedEnvelope?.dynamicBalance || 0) > 0 ? (
+                  <TouchableOpacity
+                    disabled={actionLoading}
+                    onPress={handleMoveFlexible}
+                    style={[styles.actionBtn, { backgroundColor: colors.success + "20", borderColor: colors.success }]}
+                  >
+                    <Text style={[styles.actionBtnText, { color: colors.success }]}>{t("wallet.moveFlexibleToMain")}</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {Number(selectedEnvelope?.strictBalance || 0) > 0 ? (
+                  <TouchableOpacity
+                    disabled={actionLoading}
+                    onPress={handleCreateStrictRequest}
+                    style={[styles.actionBtn, { backgroundColor: colors.danger + "18", borderColor: colors.danger }]}
+                  >
+                    <Text style={[styles.actionBtnText, { color: colors.danger }]}>{t("wallet.createStrictRequest")}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            )}
+            <TouchableOpacity disabled={actionLoading} onPress={closeActionModal} style={styles.cancelBtn}>
+              <Text style={[styles.cancelText, { color: colors.secondaryText }]}>{t("common.cancel")}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -210,7 +304,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flexGrow: 1 },
   header: { justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-  backBtn: { padding: 4 },
+  backBtnPlaceholder: { width: 32 },
   headerTitle: { fontSize: 18, fontWeight: "bold", flex: 1, textAlign: "center" },
   miniAvatar: { width: 36, height: 36, borderRadius: 18 },
   mainCard: { padding: 24, borderRadius: 24, borderWidth: 1, marginBottom: 16, ...DesignSystem.shadows.light },
@@ -241,8 +335,6 @@ const styles = StyleSheet.create({
   ccNumber: { color: "#FFF", fontSize: 18, letterSpacing: 2, fontWeight: "500" },
   ccHolder: { color: "#FFF", fontSize: 14, opacity: 0.9 },
   addCardBtn: { width: 60, height: 160, borderWidth: 1, borderStyle: "dashed", justifyContent: "center", alignItems: "center" },
-  addEnvelopeBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
-  addEnvelopeText: { fontSize: 14, fontWeight: "bold" },
   envItem: {
     flexDirection: "column",
     alignItems: "stretch",
@@ -261,6 +353,15 @@ const styles = StyleSheet.create({
   envName: { fontSize: 16, fontWeight: "bold", marginBottom: 4 },
   envAmount: { fontSize: 14 },
   envIconWrap: { width: 48, height: 48, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  categoryEmoji: { fontSize: 22 },
   emptyState: { padding: 32, alignItems: "center", borderRadius: 20, borderWidth: 1, borderStyle: "dashed" },
   emptyText: { fontSize: 14 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 24 },
+  actionSheet: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 12 },
+  actionTitle: { fontSize: 18, fontWeight: "700" },
+  actionSubtitle: { fontSize: 13 },
+  actionBtn: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  actionBtnText: { fontSize: 14, fontWeight: "700", textAlign: "center" },
+  cancelBtn: { paddingVertical: 8 },
+  cancelText: { textAlign: "center", fontSize: 14, fontWeight: "600" },
 });

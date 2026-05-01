@@ -27,7 +27,14 @@ interface AuthContextType {
   canBiometricLogin: boolean;
   signIn: (credentials: { identifier: string; password: string }) => Promise<void>;
   signInWithBiometric: () => Promise<void>;
-  signUp: (data: { name: string; email: string; phone?: string; password: string }) => Promise<void>;
+  signUp: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+    accountType?: "user" | "merchant";
+    merchantCategory?: string;
+  }) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<AppUser>) => Promise<void>;
 }
@@ -152,7 +159,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (data: { name: string; email: string; phone?: string; password: string }) => {
+  const signUp = async (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+    accountType?: "user" | "merchant";
+    merchantCategory?: string;
+  }) => {
     setIsLoading(true);
     try {
       const { user: next, accessToken: at, refreshToken: rt } = await register(data);

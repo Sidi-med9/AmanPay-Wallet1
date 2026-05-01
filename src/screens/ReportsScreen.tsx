@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import React, { useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext";
@@ -7,18 +7,236 @@ import { useWallet } from "../context/WalletContext";
 import { DesignSystem } from "../constants/DesignSystem";
 import { TrendingUp, TrendingDown, Calendar, ChevronRight, FileDown, ArrowUpRight } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system/legacy";
+
+type UiTransaction = {
+  id: string;
+  sender: string;
+  receiver: string;
+  amount: number;
+  currency: string;
+  date: string;
+  status?: string;
+  outgoing?: boolean;
+  transferMode?: "normal" | "envelope";
+};
+
+function escapeHtml(value: string): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function sanitizeFilePart(value: string): string {
+  return String(value ?? "")
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "-")
+    .replace(/\s+/g, "-");
+}
 
 export const ReportsScreen = () => {
   const { t, i18n } = useTranslation();
   const { colors, isDark } = useTheme();
-  const { reports } = useWallet();
+  const { reports, transactions } = useWallet();
   const cur = t("common.currency");
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>("all");
+  const [downloading, setDownloading] = useState(false);
   const months = useMemo(
     () => [t("reports.m1"), t("reports.m2"), t("reports.m3"), t("reports.m4"), t("reports.m5"), t("reports.m6")],
     [t, i18n.language]
   );
 
+  const monthOptions = useMemo(() => {
+    const tx = (transactions ?? []) as UiTransaction[];
+    const keys = new Set<string>();
+    for (const row of tx) {
+      const d = new Date(row.date);
+      if (Number.isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      keys.add(key);
+    }
+    const sorted = [...keys].sort((a, b) => (a > b ? -1 : 1));
+    return [
+      { key: "all", label: t("reports.monthAll") },
+      ...sorted.map((key) => {
+        const [year, month] = key.split("-");
+        const label = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString(
+          i18n.language.startsWith("ar") ? "ar-SA" : "en-US",
+          { month: "long", year: "numeric" }
+        );
+        return { key, label };
+      }),
+    ];
+  }, [transactions, i18n.language, t]);
+
+  const selectedMonthLabel = monthOptions.find((m) => m.key === selectedMonthKey)?.label ?? t("reports.monthAll");
+
+  const filteredTransactions = useMemo(() => {
+    const tx = (transactions ?? []) as UiTransaction[];
+    if (selectedMonthKey === "all") return tx;
+    return tx.filter((row) => {
+      const d = new Date(row.date);
+      if (Number.isNaN(d.getTime())) return false;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      return key === selectedMonthKey;
+    });
+  }, [transactions, selectedMonthKey]);
+
+  const monthStats = useMemo(() => {
+    let totalSent = 0;
+    let totalReceived = 0;
+    let envelopeCount = 0;
+    for (const row of filteredTransactions) {
+      const amount = Number(row.amount) || 0;
+      if (row.outgoing) totalSent += amount;
+      else totalReceived += amount;
+      if (row.transferMode === "envelope") envelopeCount += 1;
+    }
+    return {
+      totalSent,
+      totalReceived,
+      transfersCount: filteredTransactions.length,
+      envelopeCount,
+    };
+  }, [filteredTransactions]);
+
   if (!reports) return null;
+  const chartSentColor = isDark ? "#60A5FA" : "#2563EB";
+  const chartReceivedColor = isDark ? "#34D399" : "#059669";
+  const chartOtherColor = isDark ? "#FBBF24" : "#D97706";
+
+  const handleDownloadPdf = async () => {
+    try {
+      setDownloading(true);
+      const rowsHtml = filteredTransactions
+        .map((tx) => {
+          const who = tx.outgoing ? `${tx.sender} → ${tx.receiver}` : `${tx.sender} → ${tx.receiver}`;
+          const amount = `${tx.outgoing ? "-" : "+"}${Number(tx.amount || 0).toFixed(2)} ${escapeHtml(tx.currency || cur)}`;
+          const mode = tx.transferMode === "envelope" ? "Envelope" : "Normal";
+          const date = new Date(tx.date).toLocaleDateString(i18n.language.startsWith("ar") ? "ar-SA" : "en-US");
+          return `<tr>
+            <td>${escapeHtml(tx.id)}</td>
+            <td>${escapeHtml(who)}</td>
+            <td>${escapeHtml(mode)}</td>
+            <td>${escapeHtml(amount)}</td>
+            <td>${escapeHtml(date)}</td>
+          </tr>`;
+        })
+        .join("");
+      const html = `
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color:#0f172a; }
+              .brand { display:flex; align-items:center; gap:10px; margin-bottom: 10px; }
+              .brand-mark { width:34px; height:34px; border-radius:17px; background:#0ea5e9; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; }
+              .brand-name { font-size:16px; font-weight:800; color:#0f172a; }
+              .brand-sub { font-size:11px; color:#64748b; margin-top:2px; }
+              h1 { margin: 0 0 8px 0; font-size: 24px; }
+              .meta { margin-bottom: 14px; color:#475569; }
+              .cards { display:flex; gap:10px; margin: 16px 0; }
+              .card { border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px; min-width:170px; }
+              .k { font-size:12px; color:#64748b; }
+              .v { font-size:18px; font-weight:700; color:#0f172a; margin-top:4px; }
+              table { width:100%; border-collapse: collapse; margin-top: 12px; }
+              th, td { border:1px solid #e2e8f0; padding:8px; font-size:12px; text-align:left; }
+              th { background:#f8fafc; }
+            </style>
+          </head>
+          <body>
+            <div class="brand">
+              <div class="brand-mark">AP</div>
+              <div>
+                <div class="brand-name">AmanPay</div>
+                <div class="brand-sub">${escapeHtml(t("reports.brandSubtitle"))}</div>
+              </div>
+            </div>
+            <h1>${escapeHtml(t("reports.title"))}</h1>
+            <div class="meta">${escapeHtml(t("reports.monthLabel"))}: ${escapeHtml(selectedMonthLabel)}</div>
+            <div class="cards">
+              <div class="card"><div class="k">${escapeHtml(t("reports.totalSent"))}</div><div class="v">${monthStats.totalSent.toFixed(2)} ${escapeHtml(cur)}</div></div>
+              <div class="card"><div class="k">${escapeHtml(t("reports.totalReceived"))}</div><div class="v">${monthStats.totalReceived.toFixed(2)} ${escapeHtml(cur)}</div></div>
+              <div class="card"><div class="k">${escapeHtml(t("reports.transactionsCount"))}</div><div class="v">${monthStats.transfersCount}</div></div>
+            </div>
+            <h2>${escapeHtml(t("reports.transactionsSectionTitle"))}</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>${escapeHtml(t("reports.colRef"))}</th>
+                  <th>${escapeHtml(t("reports.colParties"))}</th>
+                  <th>${escapeHtml(t("reports.colType"))}</th>
+                  <th>${escapeHtml(t("reports.colAmount"))}</th>
+                  <th>${escapeHtml(t("reports.colDate"))}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml || `<tr><td colspan="5">${escapeHtml(t("reports.noTransactions"))}</td></tr>`}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+      if (Platform.OS === "web") {
+        // Web: open browser print dialog (user can "Save as PDF")
+        await Print.printAsync({ html });
+        return;
+      }
+      const { uri } = await Print.printToFileAsync({ html });
+      const now = new Date();
+      const reportWord = sanitizeFilePart(t("reports.fileWord"));
+      const monthWord = sanitizeFilePart(
+        selectedMonthKey === "all" ? t("reports.monthAll") : selectedMonthLabel
+      );
+      const yearWord = sanitizeFilePart(
+        selectedMonthKey === "all" ? String(now.getFullYear()) : selectedMonthKey.split("-")[0] || String(now.getFullYear())
+      );
+      const appName = "AmanPay";
+      const fileName = `${reportWord}-${monthWord}-${yearWord}-${appName}.pdf`;
+      const targetUri = `${FileSystem.cacheDirectory ?? FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.copyAsync({ from: uri, to: targetUri });
+
+      const openPrompt = () =>
+        new Promise<"share" | "open" | "cancel">((resolve) => {
+          Alert.alert(
+            t("reports.pdfReadyTitle"),
+            t("reports.pdfReadyMessage", { fileName }),
+            [
+              { text: t("common.cancel"), style: "cancel", onPress: () => resolve("cancel") },
+              { text: t("reports.openOption"), onPress: () => resolve("open") },
+              { text: t("reports.shareOption"), onPress: () => resolve("share") },
+            ],
+            { cancelable: true, onDismiss: () => resolve("cancel") }
+          );
+        });
+
+      const action = await openPrompt();
+      const canShare = await Sharing.isAvailableAsync();
+      if (action === "share" && canShare) {
+        await Sharing.shareAsync(targetUri, {
+          mimeType: "application/pdf",
+          dialogTitle: t("reports.sharePdfTitle"),
+          UTI: "com.adobe.pdf",
+        });
+        return;
+      }
+      if (action === "open") {
+        // Opens native print/open flow where user can also save as PDF.
+        await Print.printAsync({ uri: targetUri });
+        return;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? `${t("reports.pdfFailed")}\n\n${err.message}` : t("reports.pdfFailed");
+      Alert.alert(t("common.error"), message);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -31,15 +249,37 @@ export const ReportsScreen = () => {
             <View style={[styles.datePicker, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Calendar size={18} color={colors.secondaryText} />
               <Text style={[styles.dateText, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
-                {t("reports.date")}
+                {selectedMonthLabel}
               </Text>
             </View>
           </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthsRow}>
+            {monthOptions.map((option) => {
+              const selected = option.key === selectedMonthKey;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  onPress={() => setSelectedMonthKey(option.key)}
+                  style={[
+                    styles.monthChip,
+                    {
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected ? colors.primary + "18" : colors.card,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: selected ? colors.primary : colors.text, fontFamily: DesignSystem.fonts.family }}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
           <LinearGradient
-            colors={isDark ? ["#0C182B", "#1E293B"] : ["#E0F2FE", "#F0FDFA"]}
+            colors={isDark ? ["#111827", "#1F2937"] : ["#EFF6FF", "#F0F9FF"]}
             style={[styles.statCard, { borderRadius: DesignSystem.borderRadius.xl, borderColor: colors.border }]}
           >
             <View style={styles.statHeader}>
@@ -51,7 +291,7 @@ export const ReportsScreen = () => {
               </Text>
             </View>
             <Text style={[styles.statValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
-              {reports.totalSent.toLocaleString()} {cur}
+              {monthStats.totalSent.toLocaleString()} {cur}
             </Text>
             <View style={styles.trendRow}>
               <ArrowUpRight size={14} color={colors.success} />
@@ -60,7 +300,7 @@ export const ReportsScreen = () => {
           </LinearGradient>
 
           <LinearGradient
-            colors={isDark ? ["#0C182B", "#1E293B"] : ["#ECFDF5", "#F0FDF4"]}
+            colors={isDark ? ["#0B1F1A", "#132A24"] : ["#ECFDF5", "#F7FEF9"]}
             style={[styles.statCard, { borderRadius: DesignSystem.borderRadius.xl, borderColor: colors.border }]}
           >
             <View style={styles.statHeader}>
@@ -72,7 +312,7 @@ export const ReportsScreen = () => {
               </Text>
             </View>
             <Text style={[styles.statValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
-              {reports.totalReceived.toLocaleString()} {cur}
+              {monthStats.totalReceived.toLocaleString()} {cur}
             </Text>
             <View style={styles.trendRow}>
               <ArrowUpRight size={14} color={colors.success} />
@@ -92,13 +332,13 @@ export const ReportsScreen = () => {
           </Text>
           <View style={styles.chartLegend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+              <View style={[styles.legendDot, { backgroundColor: chartSentColor }]} />
               <Text style={[styles.legendText, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
                 {t("reports.legendSent")}
               </Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+              <View style={[styles.legendDot, { backgroundColor: chartReceivedColor }]} />
               <Text style={[styles.legendText, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
                 {t("reports.legendReceived")}
               </Text>
@@ -108,8 +348,8 @@ export const ReportsScreen = () => {
           <View style={styles.mockBarChart}>
             {[40, 60, 45, 75, 50, 85].map((h, i) => (
               <View key={i} style={styles.barGroup}>
-                <View style={[styles.bar, { height: h, backgroundColor: colors.primary, borderRadius: 4 }]} />
-                <View style={[styles.bar, { height: h * 0.7, backgroundColor: colors.success, borderRadius: 4 }]} />
+                <View style={[styles.bar, { height: h, backgroundColor: chartSentColor, borderRadius: 4 }]} />
+                <View style={[styles.bar, { height: h * 0.7, backgroundColor: chartReceivedColor, borderRadius: 4 }]} />
               </View>
             ))}
           </View>
@@ -149,19 +389,19 @@ export const ReportsScreen = () => {
             </View>
             <View style={styles.catList}>
               <View style={styles.catItem}>
-                <View style={[styles.catDot, { backgroundColor: "#3B82F6" }]} />
+                <View style={[styles.catDot, { backgroundColor: chartSentColor }]} />
                 <Text style={[styles.catName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
                   {t("reports.foodPct")}
                 </Text>
               </View>
               <View style={styles.catItem}>
-                <View style={[styles.catDot, { backgroundColor: "#10B981" }]} />
+                <View style={[styles.catDot, { backgroundColor: chartReceivedColor }]} />
                 <Text style={[styles.catName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
                   {t("reports.eduPct")}
                 </Text>
               </View>
               <View style={styles.catItem}>
-                <View style={[styles.catDot, { backgroundColor: "#F59E0B" }]} />
+                <View style={[styles.catDot, { backgroundColor: chartOtherColor }]} />
                 <Text style={[styles.catName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
                   {t("reports.otherPct")}
                 </Text>
@@ -170,10 +410,14 @@ export const ReportsScreen = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={[styles.downloadBtn, { backgroundColor: colors.primary, borderRadius: DesignSystem.borderRadius.xl }]}>
+        <TouchableOpacity
+          onPress={handleDownloadPdf}
+          disabled={downloading}
+          style={[styles.downloadBtn, { backgroundColor: colors.primary, borderRadius: DesignSystem.borderRadius.xl, opacity: downloading ? 0.7 : 1 }]}
+        >
           <FileDown color="#FFF" size={20} />
           <Text style={[styles.downloadText, { color: "#FFF", fontFamily: DesignSystem.fonts.family }]}>
-            {t("reports.downloadReport")}
+            {downloading ? t("reports.downloadingPdf") : t("reports.downloadReport")}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -189,6 +433,8 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", justifyContent: "center", width: "100%" },
   datePicker: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, borderWidth: 1, gap: 8 },
   dateText: { fontSize: 14, fontWeight: "600" },
+  monthsRow: { gap: 8, marginTop: 10, paddingHorizontal: 2 },
+  monthChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   statsScroll: { paddingBottom: 8, gap: 16 },
   statCard: { width: 220, padding: 20, borderWidth: 1, ...DesignSystem.shadows.light },
   statHeader: { flexDirection: "row", alignItems: "center", marginBottom: 16, gap: 12 },

@@ -56,10 +56,26 @@ export const DashboardScreen = ({ navigation }: any) => {
     );
   }
 
-  const recentTransactions = transactions.slice(0, 5);
+  const recentTransactions = transactions.slice(0, 20);
   const activeEnvelopes = dashboard.envelopes || [];
+  const mainBalance = Number(dashboard.mainBalance ?? dashboard.balance ?? 0);
+  const envelopeTotal = activeEnvelopes.reduce((sum: number, env: any) => sum + Number(env.balance || 0), 0);
 
   const ripple = Platform.OS === "android" ? { color: "rgba(0,0,0,0.06)" } : undefined;
+  const getCategoryMeta = (categoryId: string) => {
+    switch (categoryId) {
+      case "food":
+        return { label: t("envelopes.categoryFood"), icon: "🍽️" };
+      case "transportation":
+        return { label: t("envelopes.categoryTransportation"), icon: "🚌" };
+      case "personal_care":
+        return { label: t("envelopes.categoryPersonalCare"), icon: "💗" };
+      case "household":
+        return { label: t("envelopes.categoryHousehold"), icon: "🏠" };
+      default:
+        return { label: t("dashboard.defaultEnvelope"), icon: "🏷️" };
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
@@ -150,9 +166,27 @@ export const DashboardScreen = ({ navigation }: any) => {
               minimumFontScale={0.65}
             >
               {balanceVisible
-                ? `${dashboard.balance.toLocaleString()} ${dashboard.currency}`
+                ? `${mainBalance.toLocaleString()} ${dashboard.currency}`
                 : "••••••••"}
             </Text>
+            <View style={[styles.balanceMetaRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
+              <View style={[styles.balanceMetaPill, { backgroundColor: isDark ? "rgba(255,255,255,0.10)" : "#FFFFFFAA" }]}>
+                <Text style={[styles.balanceMetaLabel, { color: isDark ? "rgba(255,255,255,0.7)" : colors.secondaryText }]}>
+                  {t("dashboard.mainBalance")}
+                </Text>
+                <Text style={[styles.balanceMetaValue, { color: isDark ? "#FFF" : colors.text }]}>
+                  {balanceVisible ? `${mainBalance.toLocaleString()} ${dashboard.currency}` : "••••"}
+                </Text>
+              </View>
+              <View style={[styles.balanceMetaPill, { backgroundColor: isDark ? "rgba(255,255,255,0.10)" : "#FFFFFFAA" }]}>
+                <Text style={[styles.balanceMetaLabel, { color: isDark ? "rgba(255,255,255,0.7)" : colors.secondaryText }]}>
+                  {t("dashboard.envelopeBalance")}
+                </Text>
+                <Text style={[styles.balanceMetaValue, { color: isDark ? "#FFF" : colors.text }]}>
+                  {balanceVisible ? `${envelopeTotal.toLocaleString()} ${dashboard.currency}` : "••••"}
+                </Text>
+              </View>
+            </View>
 
             <View style={styles.cardActions}>
               <Pressable
@@ -161,7 +195,7 @@ export const DashboardScreen = ({ navigation }: any) => {
                   { backgroundColor: colors.primary },
                   pressed && { opacity: 0.9 },
                 ]}
-                onPress={() => navigation.navigate("Transfers")}
+                onPress={() => navigation.navigate("LocalTransfer")}
                 android_ripple={{ color: "rgba(255,255,255,0.2)" }}
                 accessibilityRole="button"
                 accessibilityLabel={t("dashboard.send")}
@@ -215,6 +249,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             {activeEnvelopes.length > 0 ? (
               activeEnvelopes.map((env: any, idx: number) => {
                 const cat = categories.find((c) => c.id === env.categoryId);
+                const categoryMeta = getCategoryMeta(env.categoryId);
                 return (
                   <View
                     key={idx}
@@ -229,26 +264,19 @@ export const DashboardScreen = ({ navigation }: any) => {
                         style={[styles.envName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}
                         numberOfLines={1}
                       >
-                        {cat?.name || t("dashboard.defaultEnvelope")}
+                        {categoryMeta.label}
                       </Text>
-                      <View style={[styles.envIcon, { backgroundColor: (cat?.color || colors.primary) + "22" }]}>
-                        <Text style={{ color: cat?.color || colors.primary, fontWeight: "bold" }}>
-                          {cat?.name?.charAt(0)}
-                        </Text>
+                      <View style={[styles.envIcon, { backgroundColor: (cat?.color || colors.primary) + "28" }]}>
+                        <Text style={styles.envEmoji}>{categoryMeta.icon}</Text>
                       </View>
                     </View>
                     <View style={styles.envProgressContainer}>
-                      <View style={[styles.envProgressBar, { backgroundColor: isDark ? "#1E293B" : "#E2E8F0" }]}>
-                        <View
-                          style={[
-                            styles.envProgressFill,
-                            { backgroundColor: cat?.color || colors.primary, width: "70%" },
-                          ]}
-                        />
-                      </View>
+                      <Text style={[styles.envSubtitle, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
+                        {env.mode === "strict" ? t("wallet.strict") : t("wallet.flexible")}
+                      </Text>
                     </View>
                     <Text style={[styles.envBalance, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
-                      {env.balance} {dashboard.currency}
+                      {Number(env.balance || 0).toLocaleString()} {dashboard.currency}
                     </Text>
                   </View>
                 );
@@ -266,7 +294,7 @@ export const DashboardScreen = ({ navigation }: any) => {
               >
                 <Plus color={colors.secondaryText} size={24} />
                 <Text style={[styles.emptyEnvText, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
-                  {t("dashboard.addWallet")}
+                  {t("wallet.emptyEnvelopes")}
                 </Text>
               </Pressable>
             )}
@@ -322,9 +350,36 @@ export const DashboardScreen = ({ navigation }: any) => {
                 >
                   {sentByMe ? trx.receiver : trx.sender}
                 </Text>
+                <Text style={[styles.trxDirection, { color: colors.secondaryText, textAlign: isRtl ? "right" : "left" }]}>
+                  {sentByMe ? t("dashboard.sentLabel") : t("dashboard.receivedLabel")}
+                </Text>
+                {trx.transferMode === "envelope" ? (
+                  <Text
+                    style={[
+                      styles.trxEnvelopeHint,
+                      { color: colors.primary, fontFamily: DesignSystem.fonts.family, textAlign: isRtl ? "right" : "left" },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {sentByMe
+                      ? t("dashboard.envelopeSent", { categories: trx.envelopeSummary || t("dashboard.defaultEnvelope") })
+                      : t("dashboard.envelopeReceived", { categories: trx.envelopeSummary || t("dashboard.defaultEnvelope") })}
+                  </Text>
+                ) : null}
                 <Text style={[styles.trxDate, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign: isRtl ? "right" : "left" }]}>
                   {new Date(trx.date).toLocaleDateString(dateLoc)}
                 </Text>
+                {!sentByMe && trx.transferMode === "envelope" ? (
+                  <Text
+                    style={[
+                      styles.trxUsageHint,
+                      { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family, textAlign: isRtl ? "right" : "left" },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {t("dashboard.envelopeUsageHint")}
+                  </Text>
+                ) : null}
               </View>
               <View style={[styles.trxAmountCol, { alignItems: isRtl ? "flex-start" : "flex-end" }]}>
                 <Text
@@ -358,6 +413,14 @@ export const DashboardScreen = ({ navigation }: any) => {
                     </Text>
                   </View>
                 )}
+                <Text
+                  style={[
+                    styles.transferModeLabel,
+                    { color: trx.transferMode === "envelope" ? colors.primary : colors.secondaryText },
+                  ]}
+                >
+                  {trx.transferMode === "envelope" ? t("dashboard.envelopeTransfer") : t("dashboard.normalTransfer")}
+                </Text>
               </View>
             </Pressable>
             );
@@ -382,6 +445,10 @@ const styles = StyleSheet.create({
   balanceHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   balanceLabel: { fontWeight: "500" },
   balanceAmount: { fontWeight: "bold", marginBottom: 20, flexWrap: "wrap" },
+  balanceMetaRow: { gap: 10, marginBottom: 16 },
+  balanceMetaPill: { flex: 1, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 12 },
+  balanceMetaLabel: { fontSize: 11, fontWeight: "600", marginBottom: 4 },
+  balanceMetaValue: { fontSize: 14, fontWeight: "700" },
   cardActions: { flexDirection: "row", gap: 10 },
   actionButton: {
     flex: 1,
@@ -403,9 +470,9 @@ const styles = StyleSheet.create({
   envHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   envName: { fontSize: 15, fontWeight: "600", flex: 1, marginEnd: 8 },
   envIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: "center", alignItems: "center" },
+  envEmoji: { fontSize: 17 },
   envProgressContainer: { marginBottom: 10 },
-  envProgressBar: { height: 6, borderRadius: 3, width: "100%", overflow: "hidden" },
-  envProgressFill: { height: "100%", borderRadius: 3 },
+  envSubtitle: { fontSize: 12, fontWeight: "600" },
   envBalance: { fontSize: 14, fontWeight: "700" },
   transactionItem: {
     flexDirection: "row",
@@ -418,9 +485,13 @@ const styles = StyleSheet.create({
   trxIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", marginEnd: 12 },
   trxContent: { flex: 1, minWidth: 0 },
   trxTitle: { fontSize: 15, fontWeight: "600", marginBottom: 4 },
+  trxDirection: { fontSize: 11, marginBottom: 3, fontWeight: "600" },
   trxDate: { fontSize: 12 },
+  trxEnvelopeHint: { fontSize: 12, fontWeight: "600", marginBottom: 2 },
+  trxUsageHint: { fontSize: 11, marginTop: 2 },
   trxAmountCol: { alignItems: "flex-end", maxWidth: "38%" },
   trxAmountText: { fontSize: 15, fontWeight: "700", marginBottom: 4 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   statusText: { fontSize: 10, fontWeight: "bold" },
+  transferModeLabel: { fontSize: 11, marginTop: 4, fontWeight: "600" },
 });

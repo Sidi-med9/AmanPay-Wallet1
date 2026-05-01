@@ -3,9 +3,9 @@
  * Set in `.env` as EXPO_PUBLIC_API_URL (loaded by Expo Metro).
  *
  * Examples:
- * - Android emulator → host machine: http://10.0.2.2:5000
- * - iOS simulator: http://localhost:5000
- * - Physical device: http://YOUR_LAN_IP:5000
+ * - Android emulator → host machine: http://10.0.2.2:3000
+ * - iOS simulator: http://localhost:3000
+ * - Physical device: http://YOUR_LAN_IP:3000
  */
 export function getApiBaseUrl(): string {
   const raw = process.env.EXPO_PUBLIC_API_URL?.trim() ?? "";

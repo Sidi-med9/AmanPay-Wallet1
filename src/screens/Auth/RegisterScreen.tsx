@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,15 @@ import { PrimaryButton } from "../../components/PrimaryButton";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { ThemedMessageDialog } from "../../components/ThemedMessageDialog";
 import { mapRegisterErrorToDialog } from "../../utils/mapAuthError";
+import { getMerchantCategories, type MerchantCategoryOption } from "../../services/amanpayApi";
+
+const FALLBACK_MERCHANT_CATEGORIES: MerchantCategoryOption[] = [
+  { code: "AL", displayName: "All Categories" },
+  { code: "FO", displayName: "Food" },
+  { code: "TR", displayName: "Transportation" },
+  { code: "PC", displayName: "Personal Care" },
+  { code: "HO", displayName: "Household" },
+];
 
 export function RegisterScreen({ navigation }: any) {
   const { signUp, isLoading } = useAuth();
@@ -31,18 +40,35 @@ export function RegisterScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [accountType, setAccountType] = useState<"user" | "merchant">("user");
+  const [merchantCategory, setMerchantCategory] = useState<string>("");
+  const [merchantCategories, setMerchantCategories] = useState<MerchantCategoryOption[]>(FALLBACK_MERCHANT_CATEGORIES);
   const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
   const [errors, setErrors] = useState<{
     name?: string;
     email?: string;
     phone?: string;
     password?: string;
+    merchantCategory?: string;
   }>({});
   const [submitted, setSubmitted] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const rows = await getMerchantCategories();
+      if (!active) return;
+      setMerchantCategories(rows.length ? rows : FALLBACK_MERCHANT_CATEGORIES);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleRegister = async () => {
     setSubmitted(true);
-    const nextErrors: { name?: string; email?: string; phone?: string; password?: string } = {};
+    const nextErrors: { name?: string; email?: string; phone?: string; password?: string; merchantCategory?: string } =
+      {};
     const nameTrimmed = name.trim();
     const emailTrimmed = email.trim().toLowerCase();
     const phoneDigits = phone.replace(/\D/g, "");
@@ -52,11 +78,21 @@ export function RegisterScreen({ navigation }: any) {
     if (phone.trim() && phoneDigits.length < 5) nextErrors.phone = t("auth.invalidPhone");
     if (!password) nextErrors.password = t("auth.fieldRequired");
     else if (password.length < 8) nextErrors.password = t("auth.passwordTooShort");
+    if (accountType === "merchant" && !merchantCategory) {
+      nextErrors.merchantCategory = t("auth.merchantCategoryRequired");
+    }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     try {
-      await signUp({ name: nameTrimmed, email: emailTrimmed, phone: phone.trim(), password });
+      await signUp({
+        name: nameTrimmed,
+        email: emailTrimmed,
+        phone: phone.trim(),
+        password,
+        accountType,
+        merchantCategory: accountType === "merchant" ? merchantCategory : undefined,
+      });
     } catch (e) {
       const m = mapRegisterErrorToDialog(e);
       const title = t(m.titleKey);
@@ -101,6 +137,103 @@ export function RegisterScreen({ navigation }: any) {
             </Text>
 
             <View style={styles.inputContainer}>
+              <Text style={[styles.accountTypeLabel, { color: colors.text, textAlign, fontFamily: DesignSystem.fonts.family }]}>
+                {t("auth.accountTypeTitle")}
+              </Text>
+              <View style={[styles.accountTypeRow, { flexDirection: isRtl ? "row-reverse" : "row" }]}>
+                <Pressable
+                  onPress={() => {
+                    setAccountType("user");
+                    setMerchantCategory("");
+                    if (submitted) setErrors((prev) => ({ ...prev, merchantCategory: undefined }));
+                  }}
+                  style={[
+                    styles.accountTypeChip,
+                    {
+                      borderColor: accountType === "user" ? colors.primary : colors.border,
+                      backgroundColor: accountType === "user" ? colors.primary + "14" : colors.card,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: accountType === "user" ? colors.primary : colors.text, fontFamily: DesignSystem.fonts.family }}>
+                    {t("auth.accountTypeUser")}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setAccountType("merchant")}
+                  style={[
+                    styles.accountTypeChip,
+                    {
+                      borderColor: accountType === "merchant" ? colors.primary : colors.border,
+                      backgroundColor: accountType === "merchant" ? colors.primary + "14" : colors.card,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: accountType === "merchant" ? colors.primary : colors.text,
+                      fontFamily: DesignSystem.fonts.family,
+                    }}
+                  >
+                    {t("auth.accountTypeMerchant")}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {accountType === "merchant" ? (
+                <>
+                  <Text
+                    style={[
+                      styles.accountTypeLabel,
+                      { color: colors.text, textAlign, fontFamily: DesignSystem.fonts.family, marginTop: 6 },
+                    ]}
+                  >
+                    {t("auth.merchantCategoryTitle")}
+                  </Text>
+                  <View style={[styles.accountTypeRow, { flexDirection: isRtl ? "row-reverse" : "row", flexWrap: "wrap" }]}>
+                    {merchantCategories.map((cat) => {
+                      const code = cat.code.toUpperCase();
+                      const labelKey =
+                        code === "AL"
+                          ? "auth.merchantCategoryAll"
+                          : code === "FO"
+                          ? "auth.merchantCategoryFood"
+                          : code === "TR"
+                            ? "auth.merchantCategoryTransportation"
+                            : code === "PC"
+                              ? "auth.merchantCategoryPersonalCare"
+                              : code === "HO"
+                                ? "auth.merchantCategoryHousehold"
+                                : null;
+                      const selected = merchantCategory === code;
+                      return (
+                        <Pressable
+                          key={cat.code}
+                          onPress={() => {
+                            setMerchantCategory(code);
+                            if (submitted) setErrors((prev) => ({ ...prev, merchantCategory: undefined }));
+                          }}
+                          style={[
+                            styles.categoryChip,
+                            {
+                              borderColor: selected ? colors.primary : colors.border,
+                              backgroundColor: selected ? colors.primary + "14" : colors.card,
+                            },
+                          ]}
+                        >
+                          <Text style={{ color: selected ? colors.primary : colors.text, fontFamily: DesignSystem.fonts.family }}>
+                            {labelKey ? t(labelKey) : cat.displayName || code}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  {errors.merchantCategory ? (
+                    <Text style={[styles.errorText, { color: colors.danger, textAlign }]}>{errors.merchantCategory}</Text>
+                  ) : null}
+                </>
+              ) : null}
+
               <TextInput
                 style={[
                   styles.input,
@@ -227,6 +360,10 @@ const styles = StyleSheet.create({
   title: { fontWeight: "bold", marginBottom: 8, textAlign: "center" },
   subtitle: { marginBottom: 24, textAlign: "center", lineHeight: 22 },
   inputContainer: { marginBottom: 8 },
+  accountTypeLabel: { fontSize: 14, fontWeight: "600", marginBottom: 8 },
+  accountTypeRow: { gap: 10, marginBottom: 12 },
+  accountTypeChip: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, flex: 1, alignItems: "center" },
+  categoryChip: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 },
   input: {
     minHeight: 52,
     borderWidth: 1,

@@ -3,26 +3,43 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Keyboa
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "../context/ThemeContext";
-import { useWallet } from "../context/WalletContext";
 import { DesignSystem } from "../constants/DesignSystem";
 import { DEFAULT_CURRENCY } from "../constants/appDefaults";
 import { PrimaryButton } from '../components/PrimaryButton';
-import { ShieldAlert, ShieldCheck, Plus, CheckSquare, Square, Info, ChevronLeft, LayoutGrid } from 'lucide-react-native';
-import { CreateCategoryModal } from '../components/CreateCategoryModal';
+import { ShieldAlert, ShieldCheck, CheckSquare, Square } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+
+const ENVELOPE_CATEGORY_OPTIONS = [
+  { id: "food", color: "#F59E0B", nameKey: "envelopes.categoryFood" },
+  { id: "transportation", color: "#10B981", nameKey: "envelopes.categoryTransportation" },
+  { id: "personal_care", color: "#EC4899", nameKey: "envelopes.categoryPersonalCare" },
+  { id: "household", color: "#6366F1", nameKey: "envelopes.categoryHousehold" },
+] as const;
 
 export const EnvelopesScreen = ({ route, navigation }: any) => {
   const { receiver, amount, type, country, intermediaryId } = route.params || {};
   const { colors, isDark } = useTheme();
   const { t, i18n } = useTranslation();
-  const { categories, dashboard } = useWallet();
   const isRtl = i18n.dir() === "rtl";
   const textAlign = isRtl ? "right" : "left";
-  const cur = dashboard?.currency ?? DEFAULT_CURRENCY;
+  const cur = DEFAULT_CURRENCY;
   
   const [envelopeMode, setEnvelopeMode] = useState<'strict' | 'flexible'>('flexible');
-  const [modalVisible, setModalVisible] = useState(false);
   const [allocations, setAllocations] = useState<Record<string, string>>({});
+
+  const getCategoryIcon = (categoryId: string) => {
+    switch (categoryId) {
+      case "food":
+        return "🍽️";
+      case "transportation":
+        return "🚌";
+      case "personal_care":
+        return "💗";
+      case "household":
+      default:
+        return "🏠";
+    }
+  };
 
   const toggleCategory = (categoryId: string) => {
     setAllocations(prev => {
@@ -94,6 +111,32 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
             </View>
           </LinearGradient>
 
+          <View
+            style={[
+              styles.quickStatsRow,
+              {
+                flexDirection: isRtl ? "row-reverse" : "row",
+              },
+            ]}
+          >
+            <View style={[styles.quickStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.quickStatLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
+                {t("envelopes.allocationTitle")}
+              </Text>
+              <Text style={[styles.quickStatValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+                {Object.keys(allocations).length}
+              </Text>
+            </View>
+            <View style={[styles.quickStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.quickStatLabel, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
+                {t("envelopes.totalAvailable")}
+              </Text>
+              <Text style={[styles.quickStatValue, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+                {totalAllocated.toLocaleString()} / {totalAmount.toLocaleString()}
+              </Text>
+            </View>
+          </View>
+
           <Text
             style={[
               styles.sectionTitle,
@@ -139,12 +182,6 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
           </View>
 
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addBtn}>
-              <Plus color={colors.primary} size={18} />
-              <Text style={[styles.addBtnText, { color: colors.primary, fontFamily: DesignSystem.fonts.family }]}>
-                {t("envelopes.createWallet")}
-              </Text>
-            </TouchableOpacity>
             <Text
               style={[
                 styles.sectionTitle,
@@ -155,8 +192,9 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
             </Text>
           </View>
 
-          {categories.map((cat) => {
+          {ENVELOPE_CATEGORY_OPTIONS.map((cat) => {
             const isSelected = allocations[cat.id] !== undefined;
+            const categoryIcon = getCategoryIcon(cat.id);
             return (
               <View 
                 key={cat.id} 
@@ -171,9 +209,11 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
                     {isSelected ? <CheckSquare color={colors.primary} size={22} /> : <Square color={colors.secondaryText} size={22} />}
                   </View>
                   <View style={styles.catRight}>
-                    <Text style={[styles.catName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>{cat.name}</Text>
-                    <View style={[styles.catIcon, { backgroundColor: cat.color + '15' }]}>
-                      <Text style={{ color: cat.color, fontWeight: 'bold' }}>{cat.name.charAt(0)}</Text>
+                    <Text style={[styles.catName, { color: colors.text, fontFamily: DesignSystem.fonts.family }]}>
+                      {t(cat.nameKey)}
+                    </Text>
+                    <View style={[styles.catIcon, { backgroundColor: cat.color + '25' }]}>
+                      <Text style={styles.catEmoji}>{categoryIcon}</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -199,11 +239,14 @@ export const EnvelopesScreen = ({ route, navigation }: any) => {
 
         </ScrollView>
         <View style={styles.footer}>
+          {!isValid ? (
+            <Text style={[styles.footerHint, { color: colors.secondaryText, fontFamily: DesignSystem.fonts.family }]}>
+              {t("envelopes.remaining", { amount: remaining.toLocaleString(), currency: cur })}
+            </Text>
+          ) : null}
           <PrimaryButton title={t("envelopes.confirm")} onPress={handleConfirm} disabled={!isValid} style={{ height: 60 }} />
         </View>
       </KeyboardAvoidingView>
-
-      <CreateCategoryModal visible={modalVisible} onClose={() => setModalVisible(false)} />
     </SafeAreaView>
   );
 };
@@ -218,21 +261,25 @@ const styles = StyleSheet.create({
   remainingBadge: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
   remainingText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, marginTop: 8, textAlign: 'right' },
+  quickStatsRow: { gap: 12, marginBottom: 20 },
+  quickStatCard: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 12 },
+  quickStatLabel: { fontSize: 12, marginBottom: 4 },
+  quickStatValue: { fontSize: 16, fontWeight: "700" },
   modesContainer: { gap: 16, marginBottom: 32 },
   modeCard: { flex: 1, padding: 20, borderWidth: 1, alignItems: 'center' },
   modeTitle: { fontSize: 15, fontWeight: 'bold', marginTop: 12, marginBottom: 4 },
   modeDesc: { fontSize: 11, textAlign: 'center' },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  addBtnText: { fontSize: 14, fontWeight: 'bold' },
+  headerRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 },
   categoryCard: { padding: 16, borderWidth: 1, marginBottom: 16 },
   catHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   catLeft: { width: 40 },
   catRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
   catIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  catEmoji: { fontSize: 20 },
   catName: { fontSize: 16, fontWeight: 'bold' },
   amountWrapper: { flexDirection: 'row', alignItems: 'center', marginTop: 16, paddingTop: 16, borderTopWidth: 1 },
   amountInput: { flex: 1, height: 44, fontSize: 20, fontWeight: 'bold' },
   currencyLabel: { fontSize: 14, fontWeight: '600', width: 50 },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, paddingBottom: 40 },
+  footerHint: { textAlign: "center", fontSize: 12, marginBottom: 8 },
 });

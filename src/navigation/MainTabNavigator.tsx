@@ -2,7 +2,6 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import {
   Wallet,
-  Send,
   PieChart,
   User,
   LayoutGrid,
@@ -11,10 +10,8 @@ import { View, StyleSheet, Platform, useWindowDimensions } from "react-native";
 
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { WalletScreen } from "../screens/WalletScreen";
-import { CategoriesScreen } from "../screens/CategoriesScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
-import { SendMoneyScreen } from "../screens/SendMoneyScreen";
 import { useTheme } from "../context/ThemeContext";
 import { DesignSystem } from "../constants/DesignSystem";
 import { useResponsiveLayout } from "../hooks/useResponsiveLayout";
@@ -42,8 +39,6 @@ export function MainTabNavigator() {
             );
           else if (route.name === "Wallet")
             icon = <Wallet color={color} size={iconSize} strokeWidth={focused ? 2.5 : 2} />;
-          else if (route.name === "Transfers")
-            icon = <Send color={color} size={iconSize} strokeWidth={focused ? 2.5 : 2} />;
           else if (route.name === "Reports")
             icon = <PieChart color={color} size={iconSize} strokeWidth={focused ? 2.5 : 2} />;
           else if (route.name === "Profile")
@@ -82,7 +77,6 @@ export function MainTabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={DashboardScreen} options={{ title: t("tabs.home") }} />
-      <Tab.Screen name="Transfers" component={SendMoneyScreen} options={{ title: t("tabs.transfers") }} />
       <Tab.Screen name="Wallet" component={WalletScreen} options={{ title: t("tabs.wallet") }} />
       <Tab.Screen name="Reports" component={ReportsScreen} options={{ title: t("tabs.reports") }} />
       <Tab.Screen name="Profile" component={SettingsScreen} options={{ title: t("tabs.profile") }} />
